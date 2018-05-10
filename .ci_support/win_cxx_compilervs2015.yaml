@@ -1,9 +1,0 @@
-boost_cpp:
-- 1.66.0
-cxx_compiler:
-- vs2015
-flann:
-- 1.9.1
-pin_run_as_build:
-  flann:
-    max_pin: x.x.x
