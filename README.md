@@ -15,8 +15,7 @@ The Point Cloud Library (PCL) is a standalone, large scale, open project for 2D/
 Current build status
 ====================
 
-[![Linux](https://img.shields.io/circleci/project/github/conda-forge/pcl-feedstock/master.svg?label=Linux)](https://circleci.com/gh/conda-forge/pcl-feedstock)
-[![OSX](https://img.shields.io/travis/conda-forge/pcl-feedstock/master.svg?label=macOS)](https://travis-ci.org/conda-forge/pcl-feedstock)
+[![Linux,OSX](https://img.shields.io/circleci/project/github/conda-forge/pcl-feedstock/master.svg?label=Linux,OSX)](https://circleci.com/gh/conda-forge/pcl-feedstock)
 [![Windows](https://img.shields.io/appveyor/ci/conda-forge/pcl-feedstock/master.svg?label=Windows)](https://ci.appveyor.com/project/conda-forge/pcl-feedstock/branch/master)
 
 Current release info
