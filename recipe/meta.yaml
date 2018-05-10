@@ -13,6 +13,7 @@ source:
 
 build:
   number: 1
+  skip: true  # [vc9]
 
 requirements:
   build:
