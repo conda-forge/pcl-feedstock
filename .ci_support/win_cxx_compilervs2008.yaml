@@ -1,7 +1,7 @@
 boost_cpp:
 - 1.66.0
 cxx_compiler:
-- toolchain_cxx
+- vs2008
 flann:
 - 1.9.1
 pin_run_as_build:
