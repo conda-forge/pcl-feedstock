@@ -1,0 +1,15 @@
+MACOSX_DEPLOYMENT_TARGET:
+- '10.9'
+boost:
+- 1.66.0
+cxx_compiler:
+- toolchain_cxx
+flann:
+- 1.9.1
+macos_machine:
+- x86_64-apple-darwin13.4.0
+macos_min_version:
+- '10.9'
+pin_run_as_build:
+  flann:
+    max_pin: x.x.x
