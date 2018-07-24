@@ -1,7 +1,7 @@
 MACOSX_DEPLOYMENT_TARGET:
 - '10.9'
 boost_cpp:
-- 1.66.0
+- 1.67.0
 cxx_compiler:
 - toolchain_cxx
 flann:
@@ -11,5 +11,7 @@ macos_machine:
 macos_min_version:
 - '10.9'
 pin_run_as_build:
+  boost-cpp:
+    max_pin: x.x.x
   flann:
     max_pin: x.x.x
