@@ -1,6 +1,6 @@
 {% set name = "pcl" %}
-{% set version = "1.8.1" %}
-{% set sha256 = "5a102a2fbe2ba77c775bf92c4a5d2e3d8170be53a68c3a76cfc72434ff7b9783" %}
+{% set version = "1.9.0" %}
+{% set sha256 = "40668357738d682c71929d7bc21a4db39312187855c6456751e2aae9dc6b29de" %}
 
 package:
   name: {{ name|lower }}
@@ -12,7 +12,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 3
+  number: 0
   skip: true  # [win and vc<14]
 
 requirements:
