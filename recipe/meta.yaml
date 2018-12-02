@@ -33,7 +33,7 @@ test:
       #    - test -d $PREFIX/include/{{ name }}-1.9/{{ name }}              # [not win]
     - if not exist %LIBRARY_INC%\\{{ name }}-1.9\\{{ name }} exit 1  # [win]
     - conda inspect linkages -p $PREFIX {{ name|lower }}             # [not win]
-    - conda inspect objects -p $PREFIX {{ name|lower }}              # [osx]
+      #    - conda inspect objects -p $PREFIX {{ name|lower }}              # [osx]
 
 about:
   home: http://www.pointclouds.org
