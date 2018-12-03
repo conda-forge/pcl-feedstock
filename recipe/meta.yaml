@@ -30,8 +30,8 @@ requirements:
 
 test:
   commands:
-    - test -d $PREFIX/include/{{ name }}-1.8/{{ name }}              # [not win]
-    - if not exist %LIBRARY_INC%\\{{ name }}-1.8\\{{ name }} exit 1  # [win]
+    - test -d $PREFIX/include/{{ name }}-1.9/{{ name }}              # [not win]
+    - if not exist %LIBRARY_INC%\\{{ name }}-1.9\\{{ name }} exit 1  # [win]
     - conda inspect linkages -p $PREFIX {{ name|lower }}             # [not win]
     - conda inspect objects -p $PREFIX {{ name|lower }}              # [osx]
 
