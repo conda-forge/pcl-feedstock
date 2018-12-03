@@ -24,8 +24,7 @@ cmake \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF
 
-make -j $CPU_COUNT
-
-make install
+ninja
+ninja install
 
 
