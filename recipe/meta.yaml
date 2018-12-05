@@ -1,6 +1,6 @@
 {% set name = "pcl" %}
-{% set version = "1.8.1" %}
-{% set sha256 = "5a102a2fbe2ba77c775bf92c4a5d2e3d8170be53a68c3a76cfc72434ff7b9783" %}
+{% set version = "1.9.1" %}
+{% set sha256 = "0add34d53cd27f8c468a59b8e931a636ad3174b60581c0387abb98a9fc9cddb6" %}
 
 package:
   name: {{ name|lower }}
@@ -12,7 +12,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 3
+  number: 0
   skip: true  # [win and vc<14]
 
 requirements:
@@ -28,10 +28,11 @@ requirements:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
 
+
 test:
   commands:
-    - test -d $PREFIX/include/{{ name }}-1.8/{{ name }}              # [not win]
-    - if not exist %LIBRARY_INC%\\{{ name }}-1.8\\{{ name }} exit 1  # [win]
+    - test -d $PREFIX/include/{{ name }}-1.9/{{ name }}              # [not win]
+    - if not exist %LIBRARY_INC%\\{{ name }}-1.9\\{{ name }} exit 1  # [win]
     - conda inspect linkages -p $PREFIX {{ name|lower }}             # [not win]
     - conda inspect objects -p $PREFIX {{ name|lower }}              # [osx]
 
