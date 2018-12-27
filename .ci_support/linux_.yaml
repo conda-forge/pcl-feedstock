@@ -1,11 +1,11 @@
 boost_cpp:
 - 1.68.0
 channel_sources:
-- conda-forge,defaults
+- conda-forge/label/gcc7,defaults
 channel_targets:
-- conda-forge main
+- conda-forge gcc7
 cxx_compiler:
-- toolchain_cxx
+- gxx
 docker_image:
 - condaforge/linux-anvil
 flann:
