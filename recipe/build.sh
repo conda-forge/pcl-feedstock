@@ -25,7 +25,7 @@ cmake \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF
 
-ninja
+ninja -j 1
 ninja install
 
 

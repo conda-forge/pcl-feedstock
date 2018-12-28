@@ -4,6 +4,3 @@ channel_sources:
 channel_targets:
 - conda-forge gcc7                  # [unix]
 - conda-forge main                  # [win]
-cxx_compiler:
-- gxx        # [linux]
-- clangxx  # [osx]
