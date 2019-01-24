@@ -2,12 +2,10 @@ MACOSX_DEPLOYMENT_TARGET:
 - '10.9'
 boost_cpp:
 - 1.68.0
-build_number_decrement:
-- '0'
 channel_sources:
-- conda-forge/label/gcc7,defaults
+- conda-forge,defaults
 channel_targets:
-- conda-forge gcc7
+- conda-forge main
 cxx_compiler:
 - clangxx
 flann:
@@ -21,8 +19,3 @@ pin_run_as_build:
     max_pin: x.x.x
   flann:
     max_pin: x.x.x
-zip_keys:
-- - cxx_compiler
-  - channel_sources
-  - channel_targets
-  - build_number_decrement
