@@ -12,7 +12,7 @@ cmake -G "Ninja" ^
   -DWITH_OPENNI2=OFF ^
   -DWITH_PCAP=OFF ^
   -DWITH_PNG=OFF ^
-  -DWITH_QHULL=OFF ^
+  -DWITH_QHULL=ON ^
   -DWITH_QT=OFF ^
   -DWITH_VTK=OFF ^
   -DBUILD_global_tests=OFF ^

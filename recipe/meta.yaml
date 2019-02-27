@@ -26,9 +26,11 @@ requirements:
     - flann
     - eigen
     - boost-cpp
+    - qhull
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
+    - qhull
 
 
 test:
