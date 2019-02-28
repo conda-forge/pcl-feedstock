@@ -22,7 +22,6 @@ jobs:
       - run:
           # Run, test and (if we have a BINSTAR_TOKEN) upload the distributions.
           command: ./.circleci/run_docker_build.sh
-          no_output_timeout: 60m
   build_osx_:
     working_directory: ~/test
     macos:
@@ -39,7 +38,6 @@ jobs:
       - run:
           # Run, test and (if we have a BINSTAR_TOKEN) upload the distributions.
           command: ./.circleci/run_osx_build.sh
-          no_output_timeout: 60m
 
 workflows:
   version: 2
