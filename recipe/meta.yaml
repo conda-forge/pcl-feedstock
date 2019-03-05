@@ -14,7 +14,7 @@ source:
     - except.patch
 
 build:
-  number: 1000
+  number: 1001
   skip: true  # [win and vc<14]
 
 requirements:
@@ -26,9 +26,11 @@ requirements:
     - flann
     - eigen
     - boost-cpp
+    - qhull
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
+    - qhull
 
 
 test:
