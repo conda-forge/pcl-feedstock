@@ -15,7 +15,7 @@ source:
     - flann.patch  # [osx]
 
 build:
-  number: 1002
+  number: 1003
   skip: true  # [win and vc<14]
 
 requirements:
