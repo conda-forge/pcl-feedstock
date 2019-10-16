@@ -13,6 +13,7 @@ source:
   patches:
     - except.patch
     - flann.patch  # [osx]
+    - boost1.70.patch
 
 build:
   number: 1003
