@@ -1,7 +1,7 @@
 MACOSX_DEPLOYMENT_TARGET:
 - '10.9'
 boost_cpp:
-- 1.68.0
+- 1.70.0
 channel_sources:
 - conda-forge,defaults
 channel_targets:
@@ -9,7 +9,7 @@ channel_targets:
 cxx_compiler:
 - clangxx
 cxx_compiler_version:
-- '4'
+- '9'
 flann:
 - 1.9.1
 macos_machine:

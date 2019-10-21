@@ -13,9 +13,10 @@ source:
   patches:
     - except.patch
     - flann.patch  # [osx]
+    - boost1.70.patch
 
 build:
-  number: 1002
+  number: 1003
   skip: true  # [win and vc<14]
 
 requirements:
