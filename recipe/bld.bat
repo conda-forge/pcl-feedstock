@@ -19,7 +19,8 @@ cmake -G "Ninja" ^
   -DBUILD_examples=OFF ^
   -DBUILD_tools=ON ^
   -DBUILD_apps=OFF ^
-  -DBoost_NO_BOOST_CMAKE:BOOL=ON
+  -DBoost_NO_BOOST_CMAKE:BOOL=ON ^
+  -DPCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL=ON
 if errorlevel 1 exit 1
 
 ninja install -j 1
