@@ -18,7 +18,8 @@ cmake -G "Ninja" ^
   -DBUILD_global_tests=OFF ^
   -DBUILD_examples=OFF ^
   -DBUILD_tools=ON ^
-  -DBUILD_apps=OFF
+  -DBUILD_apps=OFF ^
+  -DBoost_NO_BOOST_CMAKE:BOOL=ON
 if errorlevel 1 exit 1
 
 ninja install -j 1
