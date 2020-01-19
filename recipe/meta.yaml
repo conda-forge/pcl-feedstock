@@ -1,6 +1,6 @@
 {% set name = "pcl" %}
-{% set version = "1.9.1" %}
-{% set sha256 = "0add34d53cd27f8c468a59b8e931a636ad3174b60581c0387abb98a9fc9cddb6" %}
+{% set version = "1.10.0" %}
+{% set sha256 = "dd24f93967ba9512a02d6fa15855084a45deb4cd6f3662f22afbbf0d65978d20" %}
 
 package:
   name: {{ name|lower }}
@@ -16,7 +16,7 @@ source:
     - boost1.70.patch
 
 build:
-  number: 1004
+  number: 0
   skip: true  # [win and vc<14]
 
 requirements:
