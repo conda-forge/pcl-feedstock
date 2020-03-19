@@ -44,7 +44,7 @@ test:
 
 about:
   home: http://www.pointclouds.org
-  license: BSD 3-Clause
+  license: BSD-3-Clause
   license_family: BSD
   license_file: LICENSE.txt
   summary: Point Cloud Library (PCL)
