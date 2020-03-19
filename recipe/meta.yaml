@@ -1,6 +1,6 @@
 {% set name = "pcl" %}
-{% set version = "1.9.1" %}
-{% set sha256 = "0add34d53cd27f8c468a59b8e931a636ad3174b60581c0387abb98a9fc9cddb6" %}
+{% set version = "1.10.1" %}
+{% set sha256 = "61ec734ec7c786c628491844b46f9624958c360012c173bbc993c5ff88b4900e" %}
 
 package:
   name: {{ name|lower }}
@@ -16,7 +16,7 @@ source:
     - boost1.70.patch
 
 build:
-  number: 1005
+  number: 0
   skip: true  # [win and vc<14]
 
 requirements:
@@ -47,7 +47,7 @@ about:
   license: BSD 3-Clause
   license_family: BSD
   license_file: LICENSE.txt
-  summary: 'Point Cloud Library (PCL)'
+  summary: Point Cloud Library (PCL)
   description: |
     The Point Cloud Library (PCL) is a standalone, large scale, open project for 2D/3D image and point cloud processing.
   doc_url: http://www.pointclouds.org
