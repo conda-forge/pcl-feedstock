@@ -16,7 +16,7 @@ source:
     - boost1.70.patch
 
 build:
-  number: 1005
+  number: 1006
   skip: true  # [win and vc<14]
 
 requirements:
