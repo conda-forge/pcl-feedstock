@@ -14,8 +14,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 0
-  skip: true  # [win and vc<14]
+  number: 1
 
 requirements:
   build:
@@ -54,3 +53,4 @@ extra:
   recipe-maintainers:
     - chambbj
     - hobu
+    - Tobias-Fischer
