@@ -25,5 +25,5 @@ cmake \
   -DBUILD_apps=OFF \
   -DBoost_NO_BOOST_CMAKE:BOOL=ON
 
-make
-make install
+cmake --build . --config Release
+cmake --build . --config Release --target install
