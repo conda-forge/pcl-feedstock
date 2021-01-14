@@ -23,7 +23,8 @@ cmake \
   -DBUILD_examples=OFF \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF \
-  -DBoost_NO_BOOST_CMAKE:BOOL=ON
+  -DBoost_NO_BOOST_CMAKE:BOOL=ON \
+  ${CMAKE_ARGS}
 
 cmake --build . --config Release
 cmake --build . --config Release --target install
