@@ -1,5 +1,5 @@
 boost_cpp:
-- 1.72.0
+- 1.74.0
 cdt_name:
 - cos6
 channel_sources:
@@ -21,3 +21,6 @@ pin_run_as_build:
     max_pin: x.x.x
 target_platform:
 - linux-64
+zip_keys:
+- - cdt_name
+  - docker_image

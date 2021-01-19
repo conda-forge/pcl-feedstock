@@ -1,9 +1,13 @@
+BUILD:
+- aarch64-conda_cos7-linux-gnu
 boost_cpp:
 - 1.74.0
+cdt_arch:
+- aarch64
 cdt_name:
-- cos6
+- cos7
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - conda-forge main
 cxx_compiler:
@@ -20,4 +24,4 @@ pin_run_as_build:
   flann:
     max_pin: x.x.x
 target_platform:
-- linux-64
+- linux-aarch64
