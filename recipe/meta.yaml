@@ -21,6 +21,7 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake
     - ninja  # [win]
+    - make  # [unix]
   host:
     - flann
     - eigen
