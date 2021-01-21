@@ -1,5 +1,5 @@
 diff --git a/cmake/Modules/FindQhull.cmake b/cmake/Modules/FindQhull.cmake
-index 7f3cf90dc1..ff7cd4dd53 100644
+index 7f3cf90dc..93797c227 100644
 --- a/cmake/Modules/FindQhull.cmake
 +++ b/cmake/Modules/FindQhull.cmake
 @@ -9,14 +9,14 @@
@@ -10,8 +10,10 @@ index 7f3cf90dc1..ff7cd4dd53 100644
 +set(QHULL_MAJOR_VERSION 8)
  
  if(QHULL_USE_STATIC)
-   set(QHULL_RELEASE_NAME qhullstatic)
-   set(QHULL_DEBUG_NAME qhullstatic_d)
+-  set(QHULL_RELEASE_NAME qhullstatic)
+-  set(QHULL_DEBUG_NAME qhullstatic_d)
++  set(QHULL_RELEASE_NAME qhullstatic_r)
++  set(QHULL_DEBUG_NAME qhullstatic_r_d)
  else()
 -  set(QHULL_RELEASE_NAME qhull_p qhull${QHULL_MAJOR_VERSION} qhull)
 -  set(QHULL_DEBUG_NAME qhull_p_d qhull${QHULL_MAJOR_VERSION}_d qhull_d${QHULL_MAJOR_VERSION} qhull_d)
@@ -21,10 +23,10 @@ index 7f3cf90dc1..ff7cd4dd53 100644
  
  find_file(QHULL_HEADER
 diff --git a/surface/include/pcl/surface/convex_hull.h b/surface/include/pcl/surface/convex_hull.h
-index d82bbf0b0e..917b42c412 100644
+index 2db2e92ac..7c0d40623 100644
 --- a/surface/include/pcl/surface/convex_hull.h
 +++ b/surface/include/pcl/surface/convex_hull.h
-@@ -88,11 +88,11 @@ namespace pcl
+@@ -89,11 +89,11 @@ namespace pcl
        using PointCloudConstPtr = typename PointCloud::ConstPtr;
  
        /** \brief Empty constructor. */
@@ -39,7 +41,7 @@ index d82bbf0b0e..917b42c412 100644
        /** \brief Empty destructor */
        ~ConvexHull () {}
 diff --git a/surface/include/pcl/surface/impl/concave_hull.hpp b/surface/include/pcl/surface/impl/concave_hull.hpp
-index 85f6811a29..5319d6cf22 100644
+index 02591d792..05d28851e 100644
 --- a/surface/include/pcl/surface/impl/concave_hull.hpp
 +++ b/surface/include/pcl/surface/impl/concave_hull.hpp
 @@ -194,8 +194,13 @@ pcl::ConcaveHull<PointInT>::performReconstruction (PointCloud &alpha_shape, std:
@@ -57,7 +59,7 @@ index 85f6811a29..5319d6cf22 100644
  
    if (exitcode != 0)
    {
-@@ -227,16 +227,16 @@ pcl::ConcaveHull<PointInT>::performReconstruction (PointCloud &alpha_shape, std:
+@@ -227,16 +232,16 @@ pcl::ConcaveHull<PointInT>::performReconstruction (PointCloud &alpha_shape, std:
      alpha_shape.width = alpha_shape.height = 0;
      polygons.resize (0);
  
@@ -193,7 +195,7 @@ index 85f6811a29..5319d6cf22 100644
    Eigen::Affine3d transInverse = transform1.inverse ();
    pcl::transformPointCloud (alpha_shape, alpha_shape, transInverse);
 diff --git a/surface/include/pcl/surface/impl/convex_hull.hpp b/surface/include/pcl/surface/impl/convex_hull.hpp
-index 3d911b7a0a..8eef0a5b92 100644
+index ef8330ac7..f7b8af988 100644
 --- a/surface/include/pcl/surface/impl/convex_hull.hpp
 +++ b/surface/include/pcl/surface/impl/convex_hull.hpp
 @@ -180,18 +180,23 @@ pcl::ConvexHull<PointInT>::performReconstruction2D (PointCloud &hull, std::vecto
@@ -235,7 +237,7 @@ index 3d911b7a0a..8eef0a5b92 100644
  
      return;
    }
-@@ -209,11 +209,11 @@ pcl::ConvexHull<PointInT>::performReconstruction2D (PointCloud &hull, std::vecto
+@@ -209,11 +214,11 @@ pcl::ConvexHull<PointInT>::performReconstruction2D (PointCloud &hull, std::vecto
    // Qhull returns the area in volume for 2D
    if (compute_area_)
    {
@@ -294,7 +296,7 @@ index 3d911b7a0a..8eef0a5b92 100644
    }
  #endif
  
-@@ -341,18 +341,18 @@ pcl::ConvexHull<PointInT>::performReconstruction3D (
+@@ -341,18 +353,18 @@ pcl::ConvexHull<PointInT>::performReconstruction3D (
      hull.width = hull.height = 0;
      polygons.resize (0);
  
@@ -359,7 +361,7 @@ index 3d911b7a0a..8eef0a5b92 100644
    hull.width = hull.size ();
    hull.height = 1;
 diff --git a/surface/include/pcl/surface/qhull.h b/surface/include/pcl/surface/qhull.h
-index 39eee73e40..f119b2109a 100644
+index 39eee73e4..f119b2109 100644
 --- a/surface/include/pcl/surface/qhull.h
 +++ b/surface/include/pcl/surface/qhull.h
 @@ -49,14 +49,14 @@
