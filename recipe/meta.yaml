@@ -12,9 +12,11 @@ source:
   fn: {{ name }}-{{ version }}.tar.gz
   url: https://github.com/pointcloudlibrary/{{ name }}/archive/{{ name }}-{{ version }}.tar.gz
   sha256: {{ sha256 }}
+  patches:
+    - 4540.patch
 
 build:
-  number: 2
+  number: 3
 
 requirements:
   build:
