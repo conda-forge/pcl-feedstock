@@ -285,7 +285,7 @@ index 0000000000..46a6004a7e
 +  IOPLY
 +  RenderingAnnotation
 +  RenderingCore
-+  #RenderingContext2D made optionel as its for 2D rendering only and not default on MacOS
++  RenderingContext2D
 +  RenderingLOD
 +  RenderingFreeType
 +  ViewsCore
@@ -297,8 +297,8 @@ index 0000000000..46a6004a7e
 +  set(VTK_RENDERING_BACKEND "OpenGL")
 +  set(VTK_RENDERING_BACKEND_OPENGL_VERSION "1")
 +  message(DEPRECATION "The rendering backend OpenGL is deprecated and not available anymore since VTK 8.2."
-+					  "Please switch to the OpenGL2 backend instead, which is available since VTK 6.2."
-+					  "Support of the deprecated backend will be dropped with PCL 1.13.")
++                                         "Please switch to the OpenGL2 backend instead, which is available since VTK 6.2."
++                                         "Support of the deprecated backend will be dropped with PCL 1.13.")
 +
 +#If VTK version 7,8 or 9 use OpenGL2
 +else()
@@ -306,7 +306,7 @@ index 0000000000..46a6004a7e
 +  set(VTK_RENDERING_BACKEND_OPENGL_VERSION "2")
 +endif()
 +
-+list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND} RenderingContext${VTK_RENDERING_BACKEND})
++list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND})
 +
 +#Append vtk to components if version is <9.0
 +if(VTK_VERSION VERSION_LESS 9.0)
@@ -338,7 +338,7 @@ index 0000000000..46a6004a7e
 +      unset(HAVE_QVTK)
 +    endif()
 +  else()
-+	if(";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";GUISupportQt;" AND ";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingQt;")
++       if(";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";GUISupportQt;" AND ";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingQt;")
 +      set(HAVE_QVTK TRUE)
 +      #PCL_VTK_COMPONENTS is used in the PCLConfig.cmake to refind the required modules.
 +      #Post vtk 9.0, only required libraries are linked against pcl_visualizer.
@@ -679,28 +679,6 @@ Subject: [PATCH 09/15] Fix visualization.
  visualization/src/point_picking_event.cpp     |   1 -
  15 files changed, 264 insertions(+), 279 deletions(-)
 
-diff --git a/cmake/pcl_find_vtk.cmake b/cmake/pcl_find_vtk.cmake
-index 46a6004a7e..99f8d55860 100644
---- a/cmake/pcl_find_vtk.cmake
-+++ b/cmake/pcl_find_vtk.cmake
-@@ -60,7 +60,7 @@ set(NON_PREFIX_PCL_VTK_COMPONENTS
-   IOPLY
-   RenderingAnnotation
-   RenderingCore
--  #RenderingContext2D made optionel as its for 2D rendering only and not default on MacOS
-+  RenderingContext2D
-   RenderingLOD
-   RenderingFreeType
-   ViewsCore
-@@ -81,7 +81,7 @@ else()
-   set(VTK_RENDERING_BACKEND_OPENGL_VERSION "2")
- endif()
- 
--list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND} RenderingContext${VTK_RENDERING_BACKEND})
-+list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND})
- 
- #Append vtk to components if version is <9.0
- if(VTK_VERSION VERSION_LESS 9.0)
 diff --git a/visualization/CMakeLists.txt b/visualization/CMakeLists.txt
 index 260e8b86dc..e9ead2ac0e 100644
 --- a/visualization/CMakeLists.txt
