@@ -544,7 +544,7 @@ index f8fbb48e54..c58df563ea 100644
    // Consider every <scene_reference_point_sampling_rate>-th point as the reference point => fix s_r
    float f1, f2, f3, f4;
 -  for (std::size_t scene_reference_index = 0; scene_reference_index < target_->size (); scene_reference_index += scene_reference_point_sampling_rate_)
-+  for (index_t scene_reference_index = 0; scene_reference_index < static_cast<index_t>(target_->size());
++  for (index_t scene_reference_index = 0; scene_reference_index < static_cast<index_t>(target_->size()); scene_reference_index += scene_reference_point_sampling_rate_)
    {
      Eigen::Vector3f scene_reference_point = (*target_)[scene_reference_index].getVector3fMap (),
          scene_reference_normal = (*target_)[scene_reference_index].getNormalVector3fMap ();
