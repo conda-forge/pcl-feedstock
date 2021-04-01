@@ -19,8 +19,12 @@ pin_run_as_build:
     max_pin: x.x.x
   flann:
     max_pin: x.x.x
+  vtk:
+    max_pin: x.x.x
 target_platform:
 - linux-64
+vtk:
+- 9.0.1
 zip_keys:
 - - cdt_name
   - docker_image
