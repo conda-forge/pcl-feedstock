@@ -14,6 +14,7 @@ source:
   sha256: {{ sha256 }}
   patches:
     - 4540.patch
+    - fix-visualization.patch
 
 build:
   number: 4
