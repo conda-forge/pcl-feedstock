@@ -38,13 +38,13 @@ requirements:
     - boost-cpp
     - qhull
     - vtk 8.*
-    - glew  # [osx]
+    - glew
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
     - qhull
-    - vtk
-    - glew  # [osx]
+    - vtk 8.*
+    - glew
 
 test:
   commands:
