@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
   patches:
     - 4540.patch
-    # - fix-visualization.patch
+    - fix-visualization.patch
 
 build:
   number: 4
@@ -37,13 +37,13 @@ requirements:
     - eigen
     - boost-cpp
     - qhull
-    - vtk 8.*
+    - vtk
     - glew
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
     - qhull
-    - vtk 8.*
+    - vtk
     - glew
 
 test:
