@@ -250,11 +250,11 @@ index 0000000000..46a6004a7e
 +find_package(VTK)
 +
 +if(NOT VTK_FOUND)
-+    return()
++    message(FATAL_ERROR "VTK not found")
 +endif()
 +
 +if(VTK_FOUND AND (VTK_VERSION VERSION_LESS 6.2))
-+  message(WARNING "The minimum required version of VTK is 6.2, but found ${VTK_VERSION}")
++  message(FATAL_ERROR "The minimum required version of VTK is 6.2, but found ${VTK_VERSION}")
 +  set(VTK_FOUND FALSE)
 +  return()
 +endif()
@@ -323,7 +323,7 @@ index 0000000000..46a6004a7e
 +
 +if (vtkMissingComponents)
 +  set(VTK_FOUND FALSE)
-+  message(WARNING "Missing vtk modules: ${vtkMissingComponents}")
++  message(FATAL_ERROR "Missing vtk modules: ${vtkMissingComponents}")
 +endif()
 +
 +if(WITH_QT)
