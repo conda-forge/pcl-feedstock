@@ -16,7 +16,7 @@ source:
     - 4540.patch
 
 build:
-  number: 3
+  number: 4
 
 requirements:
   build:
