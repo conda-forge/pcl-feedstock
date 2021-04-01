@@ -1,0 +1,967 @@
+From 0ac66840b23a78c11b220c2141d57c9eac527a70 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:09:03 +0200
+Subject: [PATCH] Fix visualization.
+
+---
+ cmake/pcl_find_vtk.cmake                      |   4 +-
+ visualization/CMakeLists.txt                  |  61 ++++++-
+ .../pcl/visualization/common/actor_map.h      |   1 +
+ .../common/ren_win_interact_map.h             |   3 +-
+ .../pcl/visualization/impl/pcl_visualizer.hpp | 109 ++++++-----
+ .../pcl/visualization/interactor_style.h      |   2 +
+ .../include/pcl/visualization/pcl_plotter.h   |  12 +-
+ .../pcl/visualization/pcl_visualizer.h        |  13 +-
+ .../pcl/visualization/qvtk_compatibility.h    |  19 +-
+ visualization/include/pcl/visualization/vtk.h | 170 +-----------------
+ visualization/src/cloud_viewer.cpp            |   3 +
+ visualization/src/histogram_visualizer.cpp    |   1 -
+ visualization/src/interactor_style.cpp        |   3 +-
+ visualization/src/pcl_visualizer.cpp          | 141 +++++++++++----
+ visualization/src/point_picking_event.cpp     |   1 -
+ 15 files changed, 264 insertions(+), 279 deletions(-)
+
+diff --git a/cmake/pcl_find_vtk.cmake b/cmake/pcl_find_vtk.cmake
+index 46a6004a7e..99f8d55860 100644
+--- a/cmake/pcl_find_vtk.cmake
++++ b/cmake/pcl_find_vtk.cmake
+@@ -60,7 +60,7 @@ set(NON_PREFIX_PCL_VTK_COMPONENTS
+   IOPLY
+   RenderingAnnotation
+   RenderingCore
+-  #RenderingContext2D made optionel as its for 2D rendering only and not default on MacOS
++  RenderingContext2D
+   RenderingLOD
+   RenderingFreeType
+   ViewsCore
+@@ -81,7 +81,7 @@ else()
+   set(VTK_RENDERING_BACKEND_OPENGL_VERSION "2")
+ endif()
+ 
+-list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND} RenderingContext${VTK_RENDERING_BACKEND})
++list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND})
+ 
+ #Append vtk to components if version is <9.0
+ if(VTK_VERSION VERSION_LESS 9.0)
+diff --git a/visualization/CMakeLists.txt b/visualization/CMakeLists.txt
+index 260e8b86dc..e9ead2ac0e 100644
+--- a/visualization/CMakeLists.txt
++++ b/visualization/CMakeLists.txt
+@@ -63,6 +63,14 @@ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+   )
+ endif()
+ 
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  if(NOT (";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;"))
++    list(REMOVE_ITEM srcs
++      src/pcl_painter2D.cpp
++    )
++  endif()  
++endif()
++
+ set(incs
+   "include/pcl/${SUBSYS_NAME}/eigen.h"
+   "include/pcl/${SUBSYS_NAME}/boost.h"
+@@ -117,6 +125,7 @@ set(vtk_incs
+   "include/pcl/${SUBSYS_NAME}/vtk/pcl_image_canvas_source_2d.h"
+   "include/pcl/${SUBSYS_NAME}/vtk/pcl_context_item.h"
+   "include/pcl/${SUBSYS_NAME}/vtk/vtkRenderWindowInteractorFix.h"
++  "include/pcl/${SUBSYS_NAME}/vtk/pcl_vtk_compatibility.h"
+ )
+ 
+ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+@@ -126,6 +135,15 @@ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+   )
+ endif()
+ 
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  if(NOT (";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;"))
++    
++    list(REMOVE_ITEM incs
++      "include/pcl/${SUBSYS_NAME}/pcl_painter2D.h"
++    )
++  endif()
++endif()
++
+ # on apple, a workaround is used for the cocoa render window interactor
+ if(APPLE)
+   list(APPEND srcs
+@@ -135,14 +153,43 @@ endif()
+ set(LIB_NAME "pcl_${SUBSYS_NAME}")
+ PCL_ADD_LIBRARY(${LIB_NAME} COMPONENT ${SUBSYS_NAME} SOURCES ${srcs} ${incs} ${common_incs} ${impl_incs} ${common_impl_incs} ${vtk_incs})
+ 
+-target_include_directories("${LIB_NAME}" SYSTEM PUBLIC ${VTK_INCLUDE_DIRS})
+-
+ # apple workaround (continued)
+ if(APPLE)
+   target_link_libraries("${LIB_NAME}" "-framework Cocoa")
+ endif()
+ 
+-target_link_libraries("${LIB_NAME}" pcl_common pcl_io pcl_kdtree ${VTK_LIBRARIES} ${OPENGL_LIBRARIES})
++target_link_libraries("${LIB_NAME}" pcl_common pcl_io pcl_kdtree ${OPENGL_LIBRARIES})
++
++if(${VTK_VERSION} VERSION_LESS 9.0)
++  target_include_directories("${LIB_NAME}" SYSTEM PUBLIC ${VTK_INCLUDE_DIRS})
++  target_link_libraries("${LIB_NAME}" ${VTK_LIBRARIES})
++else()
++  #Some libs are referenced through depending on IO
++  target_link_libraries("${LIB_NAME}"
++                        VTK::ChartsCore
++                        VTK::CommonColor
++                        VTK::CommonDataModel
++                        VTK::FiltersExtraction
++                        VTK::FiltersGeometry
++                        VTK::FiltersGeneral
++                        VTK::FiltersModeling
++                        VTK::FiltersSources
++                        VTK::IOImage
++                        VTK::IOPLY
++                        VTK::ImagingSources
++                        VTK::InteractionImage
++                        VTK::InteractionStyle
++                        VTK::RenderingAnnotation
++                        VTK::RenderingContext2D
++                        VTK::RenderingFreeType
++                        VTK::RenderingLOD
++                        VTK::RenderingOpenGL2
++                        VTK::ViewsContext2D)
++                        
++  if(";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;")
++    target_link_libraries("${LIB_NAME}" VTK::RenderingContextOpenGL2)
++  endif()
++endif()
+ 
+ set(EXT_DEPS "")
+ if(WITH_OPENNI)
+@@ -163,6 +210,7 @@ endif()
+ if(WITH_RSSDK)
+   list(APPEND EXT_DEPS rssdk)
+ endif()
++
+ PCL_MAKE_PKGCONFIG(${LIB_NAME} COMPONENT ${SUBSYS_NAME} DESC ${SUBSYS_DESC} PCL_DEPS ${SUBSYS_DEPS} EXT_DEPS ${EXT_DEPS})
+ 
+ # Install include files
+@@ -172,6 +220,13 @@ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/impl" ${impl_incs})
+ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/common/impl" ${common_impl_incs})
+ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/vtk" ${vtk_incs})
+ 
++#TODO: Update when CMAKE 3.10 is available
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  vtk_module_autoinit(TARGETS "${LIB_NAME}" 
++                      MODULES VTK::RenderingOpenGL2
++                              VTK::RenderingFreeType)
++endif()
++
+ if(BUILD_TESTS)
+   add_subdirectory(test)
+ endif()
+diff --git a/visualization/include/pcl/visualization/common/actor_map.h b/visualization/include/pcl/visualization/common/actor_map.h
+index 0fb1903b8c..acd9fd247f 100644
+--- a/visualization/include/pcl/visualization/common/actor_map.h
++++ b/visualization/include/pcl/visualization/common/actor_map.h
+@@ -42,6 +42,7 @@
+ 
+ #include <vtkLODActor.h>
+ #include <vtkSmartPointer.h>
++#include <vtkIdTypeArray.h>
+ 
+ #include <unordered_map>
+ #include <vector>
+diff --git a/visualization/include/pcl/visualization/common/ren_win_interact_map.h b/visualization/include/pcl/visualization/common/ren_win_interact_map.h
+index 451456610e..1841f13a28 100644
+--- a/visualization/include/pcl/visualization/common/ren_win_interact_map.h
++++ b/visualization/include/pcl/visualization/common/ren_win_interact_map.h
+@@ -41,8 +41,9 @@
+ #include <map>
+ #include <string>
+ 
++#include <vtkXYPlotActor.h>
++
+ template <typename T> class vtkSmartPointer;
+-class vtkXYPlotActor;
+ class vtkRenderer;
+ class vtkRenderWindow;
+ class vtkRenderWindowInteractor;
+diff --git a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+index 14fbdd6636..e8aac7eac3 100644
+--- a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
++++ b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+@@ -62,6 +62,7 @@
+ #include <vtkLODActor.h>
+ #include <vtkLineSource.h>
+ 
++#include <pcl/common/utils.h> // pcl::utils::ignore
+ #include <pcl/visualization/common/shapes.h>
+ 
+ // Support for VTK 7.1 upwards
+@@ -270,13 +271,40 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+     points->SetNumberOfPoints (nr_points);
+   }
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+ 
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++
+   // Set the cell count explicitly as the array doesn't get modified enough so the above method updates accordingly. See #4001 and #3452
+   vertices->SetNumberOfCells(nr_points);
++#endif
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -306,10 +334,36 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+   if (!vertices)
+     vertices = vtkSmartPointer<vtkCellArray>::New ();
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++#endif
+ }
+ 
+ ////////////////////////////////////////////////////////////////////////////////////////////
+@@ -1306,7 +1360,6 @@ pcl::visualization::PCLVisualizer::fromHandlersToScreen (
+   vtkSmartPointer<vtkIdTypeArray> initcells;
+   // Convert the PointCloud to VTK PolyData
+   convertPointCloudToVTKPolyData<PointT> (geometry_handler, polydata, initcells);
+-  // use the given geometry handler
+ 
+   // Get the colors from the handler
+   bool has_colors = false;
+@@ -1666,32 +1719,9 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (
+   {
+     // Create polys from polyMesh.polygons
+     vtkSmartPointer<vtkCellArray> cell_array = vtkSmartPointer<vtkCellArray>::New ();
+-    vtkIdType *cell = cell_array->WritePointer (vertices.size (), vertices.size () * (max_size_of_polygon + 1));
+-    int idx = 0;
+-    if (!lookup.empty ())
+-    {
+-      for (std::size_t i = 0; i < vertices.size (); ++i, ++idx)
+-      {
+-        std::size_t n_points = vertices[i].vertices.size ();
+-        *cell++ = n_points;
+-        //cell_array->InsertNextCell (n_points);
+-        for (std::size_t j = 0; j < n_points; j++, ++idx)
+-          *cell++ = lookup[vertices[i].vertices[j]];
+-          //cell_array->InsertCellPoint (lookup[vertices[i].vertices[j]]);
+-      }
+-    }
+-    else
+-    {
+-      for (std::size_t i = 0; i < vertices.size (); ++i, ++idx)
+-      {
+-        std::size_t n_points = vertices[i].vertices.size ();
+-        *cell++ = n_points;
+-        //cell_array->InsertNextCell (n_points);
+-        for (std::size_t j = 0; j < n_points; j++, ++idx)
+-          *cell++ = vertices[i].vertices[j];
+-          //cell_array->InsertCellPoint (vertices[i].vertices[j]);
+-      }
+-    }
++    
++    const auto idx = details::fillCells(lookup,vertices,cell_array, max_size_of_polygon);
++
+     vtkSmartPointer<vtkPolyData> polydata;
+     allocVtkPolyData (polydata);
+     cell_array->GetData ()->SetNumberOfValues (idx);
+@@ -1843,28 +1873,9 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+ 
+   // Update the cells
+   cells = vtkSmartPointer<vtkCellArray>::New ();
+-  vtkIdType *cell = cells->WritePointer (verts.size (), verts.size () * (max_size_of_polygon + 1));
+-  int idx = 0;
+-  if (!lookup.empty ())
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = lookup[verts[i].vertices[j]];
+-    }
+-  }
+-  else
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = verts[i].vertices[j];
+-    }
+-  }
++  
++  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++
+   cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+diff --git a/visualization/include/pcl/visualization/interactor_style.h b/visualization/include/pcl/visualization/interactor_style.h
+index b4c11200b8..d1faa0beda 100644
+--- a/visualization/include/pcl/visualization/interactor_style.h
++++ b/visualization/include/pcl/visualization/interactor_style.h
+@@ -50,6 +50,8 @@
+ #include <boost/signals2/signal.hpp>
+ #endif
+ #include <vtkInteractorStyleRubberBandPick.h>
++#include <vtkRendererCollection.h>
++#include <vtkRenderWindow.h>
+ 
+ class vtkRendererCollection;
+ class vtkLegendScaleActor;
+diff --git a/visualization/include/pcl/visualization/pcl_plotter.h b/visualization/include/pcl/visualization/pcl_plotter.h
+index f897978672..93f78695d1 100644
+--- a/visualization/include/pcl/visualization/pcl_plotter.h
++++ b/visualization/include/pcl/visualization/pcl_plotter.h
+@@ -48,16 +48,16 @@
+ #include <pcl/point_cloud.h>
+ #include <pcl/common/io.h>
+ 
+-class vtkRenderWindow;
+-class vtkRenderWindowInteractor;
+-class vtkContextView;
+-class vtkChartXY;
+-class vtkColorSeries;
+-
++#include <vtkContextView.h>
++#include <vtkChartXY.h>
++#include <vtkColorSeries.h>
+ #include <vtkSmartPointer.h>
+ #include <vtkCommand.h>
+ #include <vtkChart.h>
+ 
++class vtkRenderWindow;
++class vtkRenderWindowInteractor;
++
+ namespace pcl
+ {
+   namespace visualization
+diff --git a/visualization/include/pcl/visualization/pcl_visualizer.h b/visualization/include/pcl/visualization/pcl_visualizer.h
+index c57bb6e790..64e14ebf8a 100644
+--- a/visualization/include/pcl/visualization/pcl_visualizer.h
++++ b/visualization/include/pcl/visualization/pcl_visualizer.h
+@@ -53,14 +53,15 @@
+ #include <pcl/visualization/area_picking_event.h>
+ #include <pcl/visualization/interactor_style.h>
+ 
++#include <vtkOrientationMarkerWidget.h>
++#include <vtkRenderWindowInteractor.h>
++
+ // VTK includes
+ class vtkPolyData;
+ class vtkTextActor;
+ class vtkRenderWindow;
+-class vtkOrientationMarkerWidget;
+ class vtkAppendPolyData;
+ class vtkRenderWindow;
+-class vtkRenderWindowInteractor;
+ class vtkTransform;
+ class vtkInteractorStyle;
+ class vtkLODActor;
+@@ -68,6 +69,7 @@ class vtkProp;
+ class vtkActor;
+ class vtkDataSet;
+ class vtkUnstructuredGrid;
++class vtkCellArray;
+ 
+ namespace pcl
+ {
+@@ -76,6 +78,11 @@ namespace pcl
+ 
+   namespace visualization
+   {
++    namespace details
++    {
++      vtkIdType fillCells(std::vector<int>& lookup, const std::vector<pcl::Vertices>& vertices, vtkSmartPointer<vtkCellArray> cell_array, int max_size_of_polygon);
++    }
++
+     /** \brief PCL Visualizer main class.
+       * \author Radu B. Rusu
+       * \ingroup visualization
+@@ -2170,7 +2177,7 @@ namespace pcl
+                                         vtkSmartPointer<vtkPolyData> &polydata,
+                                         vtkSmartPointer<vtkIdTypeArray> &initcells);
+ 
+-        /** \brief Converts a PCL templated PointCloud object to a vtk polydata object.
++        /** \brief Converts a PCL object to a vtk polydata object.
+           * \param[in] geometry_handler the geometry handler object used to extract the XYZ data
+           * \param[out] polydata the resultant polydata containing the cloud
+           * \param[out] initcells a list of cell indices used for the conversion. This can be set once and then passed
+diff --git a/visualization/include/pcl/visualization/qvtk_compatibility.h b/visualization/include/pcl/visualization/qvtk_compatibility.h
+index e0d9a3928e..b6ac0e72f2 100644
+--- a/visualization/include/pcl/visualization/qvtk_compatibility.h
++++ b/visualization/include/pcl/visualization/qvtk_compatibility.h
+@@ -11,6 +11,7 @@
+ 
+ #if HAVE_QVTK
+ #include <vtkVersion.h>
++#include <vtkRenderWindow.h>
+ 
+ #if VTK_MAJOR_VERSION > 8
+   #include <QVTKOpenGLNativeWidget.h>
+@@ -21,27 +22,27 @@
+ #endif // VTK_MAJOR_VERSION > 8
+ 
+ 
+-inline auto PCL_EXPORTS getInteractorCompat(PCLQVTKWidget* qvtk) {
++inline auto PCL_EXPORTS getInteractorCompat(PCLQVTKWidget& qvtk) {
+ #if VTK_MAJOR_VERSION > 8
+-  return qvtk->interactor();
++  return qvtk.interactor();
+ #else
+-  return qvtk->GetInteractor();
++  return qvtk.GetInteractor();
+ #endif // VTK_MAJOR_VERSION > 8
+ }
+ 
+-inline auto PCL_EXPORTS getRenderWindowCompat(PCLQVTKWidget* qvtk) {
++inline auto PCL_EXPORTS getRenderWindowCompat(PCLQVTKWidget& qvtk) {
+ #if VTK_MAJOR_VERSION > 8
+-  return qvtk->renderWindow();
++  return qvtk.renderWindow();
+ #else
+-  return qvtk->GetRenderWindow();
++  return qvtk.GetRenderWindow();
+ #endif // VTK_MAJOR_VERSION > 8
+ }
+ 
+-inline auto PCL_EXPORTS setRenderWindowCompat(PCLQVTKWidget* qvtk, vtkRenderWindow* window) {
++inline auto PCL_EXPORTS setRenderWindowCompat(PCLQVTKWidget& qvtk, vtkRenderWindow& window) {
+ #if VTK_MAJOR_VERSION > 8
+-  return qvtk->setRenderWindow(window);
++  return qvtk.setRenderWindow(&window);
+ #else
+-  return qvtk->SetRenderWindow(window);
++  return qvtk.SetRenderWindow(&window);
+ #endif // VTK_MAJOR_VERSION > 8
+ }
+ 
+diff --git a/visualization/include/pcl/visualization/vtk.h b/visualization/include/pcl/visualization/vtk.h
+index 9f6df75a51..aa94431611 100644
+--- a/visualization/include/pcl/visualization/vtk.h
++++ b/visualization/include/pcl/visualization/vtk.h
+@@ -1,172 +1,10 @@
+ /*
+- * Software License Agreement (BSD License)
++ * SPDX-License-Identifier: BSD-3-Clause
+  *
+  *  Point Cloud Library (PCL) - www.pointclouds.org
+- *  Copyright (c) 2009-2012, Willow Garage, Inc.
+- *  Copyright (c) 2012-, Open Perception, Inc.
+- *
+- *  All rights reserved.
+- *
+- *  Redistribution and use in source and binary forms, with or without
+- *  modification, are permitted provided that the following conditions
+- *  are met:
+- *
+- *   * Redistributions of source code must retain the above copyright
+- *     notice, this list of conditions and the following disclaimer.
+- *   * Redistributions in binary form must reproduce the above
+- *     copyright notice, this list of conditions and the following
+- *     disclaimer in the documentation and/or other materials provided
+- *     with the distribution.
+- *   * Neither the name of the copyright holder(s) nor the names of its
+- *     contributors may be used to endorse or promote products derived
+- *     from this software without specific prior written permission.
+- *
+- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+- *  POSSIBILITY OF SUCH DAMAGE.
+- *
+- * $Id$
++ *  Copyright (c) 2020-, Open Perception
+  *
++ *  All rights reserved
+  */
+ 
+-#pragma once
+-
+-#if defined __GNUC__
+-#pragma GCC system_header
+-#ifdef __DEPRECATED
+-#undef __DEPRECATED
+-#define __DEPRECATED_DISABLED__
+-#endif
+-#endif
+-
+-#include <vtkVersion.h>
+-#include <vtkAppendPolyData.h>
+-#include <vtkAssemblyPath.h>
+-#include <vtkAxesActor.h>
+-#include <vtkActor.h>
+-#include <vtkBoxRepresentation.h>
+-#include <vtkBoxWidget.h>
+-#include <vtkBoxWidget2.h>
+-#include <vtkCellData.h>
+-#include <vtkMath.h>
+-#include <vtkLoopSubdivisionFilter.h>
+-#include <vtkLineSource.h>
+-#include <vtkLegendScaleActor.h>
+-#include <vtkLightKit.h>
+-#include <vtkPlatonicSolidSource.h>
+-#include <vtkPropPicker.h>
+-#include <vtkGeneralTransform.h>
+-#include <vtkSmartPointer.h>
+-#include <vtkDataSet.h>
+-#include <vtkDataSetSurfaceFilter.h>
+-#include <vtkExecutive.h>
+-#include <vtkPolygon.h>
+-#include <vtkPointPicker.h>
+-#include <vtkUnstructuredGrid.h>
+-#include <vtkConeSource.h>
+-#include <vtkDiskSource.h>
+-#include <vtkPlaneSource.h>
+-#include <vtkSphereSource.h>
+-#include <vtkIdentityTransform.h>
+-#include <vtkTransform.h>
+-#include <vtkTransformPolyDataFilter.h>
+-#include <vtkTubeFilter.h>
+-#include <vtkCubeSource.h>
+-#include <vtkAxes.h>
+-#include <vtkFloatArray.h>
+-#include <vtkPointData.h>
+-#include <vtkPolyData.h>
+-#include <vtkPolyDataReader.h>
+-#include <vtkPolyDataMapper.h>
+-#include <vtkDataSetMapper.h>
+-#include <vtkCellArray.h>
+-#include <vtkCommand.h>
+-#include <vtkCellLocator.h>
+-#include <vtkPLYReader.h>
+-#include <vtkTransformFilter.h>
+-#include <vtkPolyLine.h>
+-#include <vtkVectorText.h>
+-#include <vtkFollower.h>
+-#include <vtkCallbackCommand.h>
+-#include <vtkInteractorStyle.h>
+-#include <vtkInformationVector.h>
+-#include <vtkDataArray.h>
+-#include <vtkUnsignedCharArray.h>
+-#include <vtkPoints.h>
+-#include <vtkRendererCollection.h>
+-#include <vtkPNGWriter.h>
+-#include <vtkWindowToImageFilter.h>
+-#include <vtkInteractorStyleTrackballCamera.h>
+-#include <vtkProperty.h>
+-#include <vtkCamera.h>
+-#include <vtkObjectFactory.h>
+-#include <vtkScalarBarActor.h>
+-#include <vtkScalarsToColors.h>
+-#include <vtkClipPolyData.h>
+-#include <vtkPlanes.h>
+-#include <vtkImageImport.h>
+-#include <vtkImageViewer.h>
+-#include <vtkInteractorStyleImage.h>
+-#include <vtkImageFlip.h>
+-#include <vtkTIFFWriter.h>
+-#include <vtkBMPWriter.h>
+-#include <vtkJPEGWriter.h>
+-#include <vtkImageViewer2.h>
+-#include <vtkRenderWindow.h>
+-#include <vtkXYPlotActor.h>
+-#include <vtkTextProperty.h>
+-#include <vtkProperty2D.h>
+-#include <vtkFieldData.h>
+-#include <vtkDoubleArray.h>
+-#include <vtkLODActor.h>
+-#include <vtkPolyDataWriter.h>
+-#include <vtkTextActor.h>
+-#include <vtkCleanPolyData.h>
+-#include <vtkRenderer.h>
+-#include <vtkObject.h>
+-#include <vtkOrientationMarkerWidget.h>
+-#include <vtkImageReslice.h>
+-#include <vtkImageChangeInformation.h>
+-#include <vtkImageCanvasSource2D.h>
+-#include <vtkImageBlend.h>
+-#include <vtkImageStencilData.h>
+-#include <vtkRenderWindowInteractor.h>
+-#include <vtkChartXY.h>
+-#include <vtkPlot.h>
+-#include <vtkTable.h>
+-#include <vtkContextView.h>
+-#include <vtkContextScene.h>
+-#include <vtkColorSeries.h>
+-#include <vtkAxis.h>
+-#include <vtkSelection.h>
+-
+-#include <vtkHardwareSelector.h>
+-
+-#include <vtkTriangle.h>
+-#include <vtkWorldPointPicker.h>
+-
+-#include <vtkInteractorStyleRubberBandPick.h>
+-#include <vtkInteractorStyleTrackballActor.h>
+-#include <vtkAreaPicker.h>
+-#include <vtkExtractGeometry.h>
+-#include <vtkExtractPolyDataGeometry.h>
+-#include <vtkVertexGlyphFilter.h>
+-#include <vtkIdFilter.h>
+-#include <vtkIdTypeArray.h>
+-#include <vtkImageReader2Factory.h>
+-#include <vtkImageReader2.h>
+-#include <vtkImageData.h>
+-
+-#if defined __GNUC__ && defined __DEPRECATED_DISABLED__
+-#define __DEPRECATED
+-#undef __DEPRECATED_DISABLED__
+-#endif
++PCL_DEPRECATED_HEADER(1, 14, "Use required vtk includes instead.")
+diff --git a/visualization/src/cloud_viewer.cpp b/visualization/src/cloud_viewer.cpp
+index 79e3506e39..d670dbb7ec 100644
+--- a/visualization/src/cloud_viewer.cpp
++++ b/visualization/src/cloud_viewer.cpp
+@@ -40,6 +40,9 @@
+ #include <pcl/visualization/boost.h>
+ #include <pcl/memory.h>
+ 
++#include <vtkOrientationMarkerWidget.h>
++#include <vtkRenderWindowInteractor.h>
++
+ #include <mutex>
+ #include <thread>
+ 
+diff --git a/visualization/src/histogram_visualizer.cpp b/visualization/src/histogram_visualizer.cpp
+index 4daccd4ae3..090e8b5d67 100644
+--- a/visualization/src/histogram_visualizer.cpp
++++ b/visualization/src/histogram_visualizer.cpp
+@@ -45,7 +45,6 @@
+ #include <pcl/visualization/boost.h>
+ 
+ #include <vtkVersion.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkDoubleArray.h>
+ #include <vtkTextProperty.h>
+ #include <vtkRenderWindow.h>
+diff --git a/visualization/src/interactor_style.cpp b/visualization/src/interactor_style.cpp
+index aa55a2de70..db17786bfe 100644
+--- a/visualization/src/interactor_style.cpp
++++ b/visualization/src/interactor_style.cpp
+@@ -36,6 +36,7 @@
+  *
+  */
+ 
++#include <fstream>
+ #include <list>
+ #include <pcl/common/angles.h>
+ #include <pcl/visualization/common/io.h>
+@@ -141,7 +142,7 @@ pcl::visualization::PCLVisualizerInteractorStyle::saveCameraParameters (const st
+ {
+   FindPokedRenderer (Interactor->GetEventPosition ()[0], Interactor->GetEventPosition ()[1]);
+ 
+-  ofstream ofs_cam (file.c_str ());
++  std::ofstream ofs_cam (file.c_str ());
+   if (!ofs_cam.is_open ())
+   {
+     return (false);
+diff --git a/visualization/src/pcl_visualizer.cpp b/visualization/src/pcl_visualizer.cpp
+index 7c39b010c4..79b3d12263 100644
+--- a/visualization/src/pcl_visualizer.cpp
++++ b/visualization/src/pcl_visualizer.cpp
+@@ -51,7 +51,7 @@
+ #include <vtkPolyDataNormals.h>
+ #include <vtkMapper.h>
+ #include <vtkDataSetMapper.h>
+-
++#include <vtkCellArray.h>
+ #include <vtkHardwareSelector.h>
+ #include <vtkSelectionNode.h>
+ 
+@@ -60,6 +60,7 @@
+ 
+ #include <pcl/visualization/boost.h>
+ #include <pcl/visualization/vtk/vtkRenderWindowInteractorFix.h>
++#include <pcl/visualization/vtk/pcl_vtk_compatibility.h>
+ 
+ #if VTK_RENDERING_BACKEND_OPENGL_VERSION < 2
+ #include <pcl/visualization/vtk/vtkVertexBufferObjectMapper.h>
+@@ -82,7 +83,6 @@
+ #include <vtkAxesActor.h>
+ #include <vtkRenderWindowInteractor.h>
+ #include <vtkAreaPicker.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkOpenGLRenderWindow.h>
+ #include <vtkJPEGReader.h>
+ #include <vtkBMPReader.h>
+@@ -122,6 +122,63 @@
+   #undef far
+ #endif
+ 
++vtkIdType
++pcl::visualization::details::fillCells(std::vector<int>& lookup, const std::vector<pcl::Vertices>& vertices, vtkSmartPointer<vtkCellArray> cell_array, int max_size_of_polygon)
++{
++#ifdef VTK_CELL_ARRAY_V2
++  pcl::utils::ignore(max_size_of_polygon);
++
++  if (!lookup.empty())
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      cell_array->InsertNextCell(n_points);
++      for (const auto& vertj : verti.vertices)
++        cell_array->InsertCellPoint(lookup[vertj]);
++    }
++  }
++  else
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      cell_array->InsertNextCell(n_points);
++      for (const auto& vertj : verti.vertices)
++        cell_array->InsertCellPoint(vertj);
++    }
++  }
++#else
++  vtkIdType* cell = cell_array->WritePointer(vertices.size(), vertices.size() * (max_size_of_polygon + 1));
++
++  if (!lookup.empty())
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      *cell++ = n_points;
++      for (const auto& vertj : verti.vertices)
++        *cell++ = lookup[vertj];
++    }
++  }
++  else
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      *cell++ = n_points;
++      for (const auto& vertj : verti.vertices)
++        *cell++ = vertj;
++    }
++  }
++#endif
++
++  const auto idx = vertices.size() + std::accumulate(vertices.begin(), vertices.end(), static_cast<vtkIdType>(0),
++    [](const auto& sum, const auto& vertex) { return sum + vertex.vertices.size(); });
++
++  return idx;
++}
++
+ /////////////////////////////////////////////////////////////////////////////////////////////
+ pcl::visualization::PCLVisualizer::PCLVisualizer (const std::string &name, const bool create_interactor)
+   : update_fps_ (vtkSmartPointer<FPSCallback>::New ())
+@@ -521,13 +578,14 @@ void
+ pcl::visualization::PCLVisualizer::spinOnce (int time, bool force_redraw)
+ {
+   resetStoppedFlag ();
+-  #if (defined (__APPLE__))
+-    if (!win_->IsDrawable ())
+-    {
+-      close ();
+-      return;
+-    }
+-  #endif
++
++#if VTK_MAJOR_VERSION < 9 && defined (__APPLE__)
++  if (!win_->IsDrawable ())
++  {
++    close ();
++    return;
++  }
++#endif
+ 
+   if (!interactor_)
+     return;
+@@ -1262,7 +1320,6 @@ pcl::visualization::PCLVisualizer::createActorFromVTKDataSet (const vtkSmartPoin
+   //actor->SetNumberOfCloudPoints (std::max<vtkIdType> (1, data->GetNumberOfPoints () / 10));
+   actor->GetProperty ()->SetInterpolationToFlat ();
+ }
+-
+ /////////////////////////////////////////////////////////////////////////////////////////////
+ void
+ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+@@ -1291,10 +1348,36 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+   if (!vertices)
+     vertices = vtkSmartPointer<vtkCellArray>::New ();
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++#endif
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -3150,28 +3233,9 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+ 
+   // Update the cells
+   cells = vtkSmartPointer<vtkCellArray>::New ();
+-  vtkIdType *cell = cells->WritePointer (verts.size (), verts.size () * (max_size_of_polygon + 1));
+-  int idx = 0;
+-  if (!lookup.empty ())
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = lookup[verts[i].vertices[j]];
+-    }
+-  }
+-  else
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = verts[i].vertices[j];
+-    }
+-  }
++  
++  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++
+   cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+@@ -3541,7 +3605,8 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+ 
+   //center object
+   double CoM[3];
+-  vtkIdType npts_com = 0, *ptIds_com = nullptr;
++  vtkIdType npts_com = 0;
++  vtkCellPtsPtr ptIds_com = nullptr;
+   vtkSmartPointer<vtkCellArray> cells_com = polydata->GetPolys ();
+ 
+   double center[3], p1_com[3], p2_com[3], p3_com[3], totalArea_com = 0;
+@@ -3600,10 +3665,11 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+   // * Compute area of the mesh
+   //////////////////////////////
+   vtkSmartPointer<vtkCellArray> cells = mapper->GetInput ()->GetPolys ();
+-  vtkIdType npts = 0, *ptIds = nullptr;
++  vtkIdType npts = 0;
++  vtkCellPtsPtr ptIds = nullptr;
+ 
+   double p1[3], p2[3], p3[3], totalArea = 0;
+-  for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds);)
++  for (cells->InitTraversal (); cells->GetNextCell(npts, ptIds);)
+   {
+     polydata->GetPoint (ptIds[0], p1);
+     polydata->GetPoint (ptIds[1], p2);
+@@ -3819,7 +3885,8 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+     polydata->BuildCells ();
+ 
+     vtkSmartPointer<vtkCellArray> cells = polydata->GetPolys ();
+-    vtkIdType npts = 0, *ptIds = nullptr;
++    vtkIdType npts = 0;
++    vtkCellPtsPtr ptIds = nullptr;
+ 
+     double p1[3], p2[3], p3[3], area, totalArea = 0;
+     for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds);)
+@@ -4029,9 +4096,9 @@ pcl::visualization::PCLVisualizer::fromHandlersToScreen (
+ 
+   vtkSmartPointer<vtkPolyData> polydata;
+   vtkSmartPointer<vtkIdTypeArray> initcells;
++
+   // Convert the PointCloud to VTK PolyData
+   convertPointCloudToVTKPolyData (geometry_handler, polydata, initcells);
+-  // use the given geometry handler
+ 
+   // Get the colors from the handler
+   bool has_colors = false;
+diff --git a/visualization/src/point_picking_event.cpp b/visualization/src/point_picking_event.cpp
+index 2c38709666..c0f342ed3c 100644
+--- a/visualization/src/point_picking_event.cpp
++++ b/visualization/src/point_picking_event.cpp
+@@ -49,7 +49,6 @@
+ #include <vtkPointData.h>
+ #include <vtkVertexGlyphFilter.h>
+ #include <vtkPlanes.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkRenderer.h>
+ #include <vtkRenderWindow.h>
+ 
