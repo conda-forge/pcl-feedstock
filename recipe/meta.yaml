@@ -29,11 +29,12 @@ requirements:
     - eigen
     - boost-cpp
     - qhull
+    - vtk
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
     - qhull
-
+    - vtk
 
 test:
   commands:
