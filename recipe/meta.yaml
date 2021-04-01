@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
   patches:
     - 4540.patch
-    - fix-visualization.patch
+    # - fix-visualization.patch
 
 build:
   number: 4
@@ -37,7 +37,7 @@ requirements:
     - eigen
     - boost-cpp
     - qhull
-    - vtk
+    - vtk 8.*
     - glew  # [osx]
   run:
     - flann
