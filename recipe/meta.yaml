@@ -39,7 +39,6 @@ requirements:
     - qhull
     - vtk
     - glew
-    - qt
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
