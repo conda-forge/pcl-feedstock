@@ -1,0 +1,3662 @@
+From cf0aea146fd14208ce6651893fb285ab51c55734 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:03:39 +0200
+Subject: [PATCH 01/15] Added compatibility headers.
+
+---
+ pcl_config.h.in                               |  2 +
+ visualization/CMakeLists.txt                  |  1 +
+ .../pcl/visualization/qvtk_compatibility.h    | 50 +++++++++++++++++++
+ .../visualization/vtk/pcl_vtk_compatibility.h | 17 +++++++
+ 4 files changed, 70 insertions(+)
+ create mode 100644 visualization/include/pcl/visualization/qvtk_compatibility.h
+ create mode 100644 visualization/include/pcl/visualization/vtk/pcl_vtk_compatibility.h
+
+diff --git a/pcl_config.h.in b/pcl_config.h.in
+index e373a8e056..3eccb95c97 100644
+--- a/pcl_config.h.in
++++ b/pcl_config.h.in
+@@ -95,3 +95,5 @@
+ /* Version of OpenGL used by VTK as rendering backend */
+ #define VTK_RENDERING_BACKEND_OPENGL_VERSION ${VTK_RENDERING_BACKEND_OPENGL_VERSION}
+ 
++#cmakedefine HAVE_QVTK 1
++
+diff --git a/visualization/CMakeLists.txt b/visualization/CMakeLists.txt
+index 990a5f5b2b..260e8b86dc 100644
+--- a/visualization/CMakeLists.txt
++++ b/visualization/CMakeLists.txt
+@@ -85,6 +85,7 @@ set(incs
+   "include/pcl/${SUBSYS_NAME}/vtk.h"
+   "include/pcl/${SUBSYS_NAME}/simple_buffer_visualizer.h"
+   "include/pcl/${SUBSYS_NAME}/pcl_plotter.h"
++  "include/pcl/${SUBSYS_NAME}/qvtk_compatibility.h"
+ )
+ 
+ set(common_incs
+diff --git a/visualization/include/pcl/visualization/qvtk_compatibility.h b/visualization/include/pcl/visualization/qvtk_compatibility.h
+new file mode 100644
+index 0000000000..e0d9a3928e
+--- /dev/null
++++ b/visualization/include/pcl/visualization/qvtk_compatibility.h
+@@ -0,0 +1,51 @@
++/*
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ *  Point Cloud Library (PCL) - www.pointclouds.org
++ *  Copyright (c) 2020-, Open Perception
++ *
++ *  All rights reserved
++ */
++#include <pcl/pcl_macros.h>
++#include <pcl/pcl_config.h>
++
++#if HAVE_QVTK
++#include <vtkVersion.h>
++#include <vtkRenderWindow.h>
++
++#if VTK_MAJOR_VERSION > 8
++  #include <QVTKOpenGLNativeWidget.h>
++  using PCLQVTKWidget = QVTKOpenGLNativeWidget;
++#else 
++  #include <QVTKWidget.h>
++  using PCLQVTKWidget = QVTKWidget;
++#endif // VTK_MAJOR_VERSION > 8
++
++
++inline auto PCL_EXPORTS getInteractorCompat(PCLQVTKWidget& qvtk) {
++#if VTK_MAJOR_VERSION > 8
++  return qvtk.interactor();
++#else
++  return qvtk.GetInteractor();
++#endif // VTK_MAJOR_VERSION > 8
++}
++
++inline auto PCL_EXPORTS getRenderWindowCompat(PCLQVTKWidget& qvtk) {
++#if VTK_MAJOR_VERSION > 8
++  return qvtk.renderWindow();
++#else
++  return qvtk.GetRenderWindow();
++#endif // VTK_MAJOR_VERSION > 8
++}
++
++inline auto PCL_EXPORTS setRenderWindowCompat(PCLQVTKWidget& qvtk, vtkRenderWindow& window) {
++#if VTK_MAJOR_VERSION > 8
++  return qvtk.setRenderWindow(&window);
++#else
++  return qvtk.SetRenderWindow(&window);
++#endif // VTK_MAJOR_VERSION > 8
++}
++
++#else
++#error PCL is not compiled with QVTK.
++#endif
+
+diff --git a/visualization/include/pcl/visualization/vtk/pcl_vtk_compatibility.h b/visualization/include/pcl/visualization/vtk/pcl_vtk_compatibility.h
+new file mode 100644
+index 0000000000..6eb6598ec1
+--- /dev/null
++++ b/visualization/include/pcl/visualization/vtk/pcl_vtk_compatibility.h
+@@ -0,0 +1,17 @@
++/*
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ *  Point Cloud Library (PCL) - www.pointclouds.org
++ *  Copyright (c) 2020-, Open Perception
++ *
++ *  All rights reserved
++ */
++
++#include <vtkCellArray.h>
++
++#ifdef VTK_CELL_ARRAY_V2
++  using vtkCellPtsPtr = vtkIdType const*;
++#else
++  using vtkCellPtsPtr = vtkIdType*;
++#endif
++
+
+From 5e8ca51a6ea7d5c8223e1b2af8e317ac1358819c Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:04:22 +0200
+Subject: [PATCH 02/15] Added pcl_find_vtk.
+
+---
+ CMakeLists.txt           |  74 +-----------------
+ cmake/pcl_find_vtk.cmake | 164 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 168 insertions(+), 70 deletions(-)
+ create mode 100644 cmake/pcl_find_vtk.cmake
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b7e7e63a15..db1290a1f6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -366,81 +366,15 @@ endif()
+ option(WITH_QT "Build QT Front-End" TRUE)
+ if(WITH_QT)
+   find_package(Qt5 COMPONENTS Concurrent OpenGL Widgets QUIET)
++  if(Qt5_FOUND)
++    message(STATUS "Found Qt5 version: ${Qt5_VERSION}")
++  endif()
+ endif()
+ 
+ # Find VTK
+ option(WITH_VTK "Build VTK-Visualizations" TRUE)
+ if(WITH_VTK AND NOT ANDROID)
+-  set(PCL_VTK_COMPONENTS
+-    vtkChartsCore
+-    vtkCommonCore
+-    vtkCommonDataModel
+-    vtkCommonExecutionModel
+-    vtkFiltersCore
+-    vtkFiltersExtraction
+-    vtkFiltersModeling
+-    vtkImagingCore
+-    vtkImagingSources
+-    vtkInteractionStyle
+-    vtkInteractionWidgets
+-    vtkIOCore
+-    vtkIOGeometry
+-    vtkIOImage
+-    vtkIOLegacy
+-    vtkIOPLY
+-    vtkRenderingAnnotation
+-    vtkRenderingLOD
+-    vtkViewsContext2D
+-  )
+-  find_package(VTK COMPONENTS ${PCL_VTK_COMPONENTS})
+-  if(VTK_FOUND AND ("${VTK_VERSION}" VERSION_LESS 6.2))
+-    message(WARNING "The minimum required version of VTK is 6.2, but found ${VTK_VERSION}")
+-    set(VTK_FOUND FALSE)
+-  endif()
+-
+-  if(VTK_FOUND)
+-    if(NOT DEFINED VTK_RENDERING_BACKEND)
+-      # On old VTK versions this variable does not exist. In this case it is
+-      # safe to assume OpenGL backend
+-      set(VTK_RENDERING_BACKEND "OpenGL")
+-    endif()
+-    list(APPEND PCL_VTK_COMPONENTS vtkRenderingContext${VTK_RENDERING_BACKEND})
+-
+-    if(WITH_QT)
+-      if(";${VTK_MODULES_ENABLED};" MATCHES ";vtkGUISupportQt;" AND ";${VTK_MODULES_ENABLED};" MATCHES ";vtkRenderingQt;")
+-        set(QVTK_FOUND ON)
+-        list(APPEND PCL_VTK_COMPONENTS vtkRenderingQt vtkGUISupportQt)
+-      else()
+-        unset(QVTK_FOUND)
+-      endif()
+-    endif()
+-
+-    find_package(VTK COMPONENTS ${PCL_VTK_COMPONENTS})
+-
+-    message(STATUS "VTK_MAJOR_VERSION ${VTK_MAJOR_VERSION}, rendering backend: ${VTK_RENDERING_BACKEND}")
+-    if(PCL_SHARED_LIBS OR (NOT (PCL_SHARED_LIBS) AND NOT (VTK_BUILD_SHARED_LIBS)))
+-      if(VTK_USE_FILE)
+-        include(${VTK_USE_FILE})
+-      endif()
+-      message(STATUS "VTK found (include: ${VTK_INCLUDE_DIRS}, libs: ${VTK_LIBRARIES}")
+-      if(APPLE)
+-        option(VTK_USE_COCOA "Use Cocoa for VTK render windows" ON)
+-        mark_as_advanced(VTK_USE_COCOA)
+-      endif()
+-      if(${VTK_RENDERING_BACKEND} STREQUAL "OpenGL")
+-        set(VTK_RENDERING_BACKEND_OPENGL_VERSION "1")
+-        message(DEPRECATION "The rendering backend OpenGL is deprecated and not available anymore since VTK 8.2."
+-                            "Please switch to the OpenGL2 backend instead, which is available since VTK 6.2."
+-                            "Support of the deprecated backend will be dropped with PCL 1.13.")
+-      elseif(${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+-        set(VTK_RENDERING_BACKEND_OPENGL_VERSION "2")
+-      endif()
+-    else()
+-      set(VTK_FOUND OFF)
+-      message("Warning: You are to build PCL in STATIC but VTK is SHARED!")
+-      message("Warning: VTK disabled!")
+-    endif()
+-  endif()
++  include("${PCL_SOURCE_DIR}/cmake/pcl_find_vtk.cmake")
+ else()
+   set(VTK_FOUND OFF)
+ endif()
+diff --git a/cmake/pcl_find_vtk.cmake b/cmake/pcl_find_vtk.cmake
+new file mode 100644
+index 0000000000..46a6004a7e
+--- /dev/null
++++ b/cmake/pcl_find_vtk.cmake
+@@ -0,0 +1,164 @@
++function(checkVTKComponents)
++  cmake_parse_arguments(PARAM "" "MISSING_COMPONENTS" "COMPONENTS" ${ARGN})
++
++  set(vtkMissingComponents)
++  
++  foreach(vtkComponent ${PARAM_COMPONENTS})
++    if (VTK_VERSION VERSION_LESS 9.0)
++      if (NOT TARGET ${vtkComponent})
++        list(APPEND vtkMissingComponents ${vtkComponent})
++      endif()
++    else()
++      if (NOT TARGET VTK::${vtkComponent})
++        list(APPEND vtkMissingComponents ${vtkComponent})
++      endif()
++    endif()
++  endforeach()
++  
++  set(${PARAM_MISSING_COMPONENTS} ${vtkMissingComponents} PARENT_SCOPE)
++endfunction()
++
++# Start with a generic call to find any VTK version we are supporting, so we retrieve
++# the version of VTK. As the module names were changed from VTK 8.2 to 9.0, we don't
++# search explicitly for modules. Furthermore we don't pass required minimum version 6.2
++# to find_package because then it only accept versions with same major version.
++find_package(VTK)
++
++if(NOT VTK_FOUND)
++    message(FATAL_ERROR "VTK not found")
++endif()
++
++if(VTK_FOUND AND (VTK_VERSION VERSION_LESS 6.2))
++  message(FATAL_ERROR "The minimum required version of VTK is 6.2, but found ${VTK_VERSION}")
++  set(VTK_FOUND FALSE)
++  return()
++endif()
++
++set(NON_PREFIX_PCL_VTK_COMPONENTS
++  ChartsCore
++  CommonColor
++  CommonCore
++  CommonDataModel
++  CommonExecutionModel
++  CommonMath
++  CommonMisc
++  CommonTransforms
++  FiltersCore
++  FiltersExtraction
++  FiltersGeneral
++  FiltersGeometry
++  FiltersModeling
++  FiltersSources
++  ImagingCore
++  ImagingSources
++  InteractionStyle
++  InteractionWidgets
++  IOCore
++  IOGeometry
++  IOImage
++  IOLegacy
++  IOPLY
++  RenderingAnnotation
++  RenderingCore
++  RenderingContext2D
++  RenderingLOD
++  RenderingFreeType
++  ViewsCore
++  ViewsContext2D
++)
++
++#If VTK version 6 use OpenGL
++if(VTK_VERSION VERSION_LESS 7.0)
++  set(VTK_RENDERING_BACKEND "OpenGL")
++  set(VTK_RENDERING_BACKEND_OPENGL_VERSION "1")
++  message(DEPRECATION "The rendering backend OpenGL is deprecated and not available anymore since VTK 8.2."
++                                         "Please switch to the OpenGL2 backend instead, which is available since VTK 6.2."
++                                         "Support of the deprecated backend will be dropped with PCL 1.13.")
++
++#If VTK version 7,8 or 9 use OpenGL2
++else()
++  set(VTK_RENDERING_BACKEND "OpenGL2")
++  set(VTK_RENDERING_BACKEND_OPENGL_VERSION "2")
++endif()
++
++list(APPEND NON_PREFIX_PCL_VTK_COMPONENTS Rendering${VTK_RENDERING_BACKEND})
++
++#Append vtk to components if version is <9.0
++if(VTK_VERSION VERSION_LESS 9.0)
++  foreach(vtkComponent ${NON_PREFIX_PCL_VTK_COMPONENTS})
++    set(vtkComponent "vtk${vtkComponent}")
++    list(APPEND PCL_VTK_COMPONENTS ${vtkComponent})
++  endforeach()
++else()
++  set(PCL_VTK_COMPONENTS ${NON_PREFIX_PCL_VTK_COMPONENTS})
++endif()
++
++# Check if requested modules are available
++checkVTKComponents(COMPONENTS ${PCL_VTK_COMPONENTS} MISSING_COMPONENTS vtkMissingComponents)
++
++if (vtkMissingComponents)
++  set(VTK_FOUND FALSE)
++  message(FATAL_ERROR "Missing vtk modules: ${vtkMissingComponents}")
++endif()
++
++if(WITH_QT)
++  if(VTK_VERSION VERSION_LESS 9.0)
++    if(";${VTK_MODULES_ENABLED};" MATCHES ";vtkGUISupportQt;" AND ";${VTK_MODULES_ENABLED};" MATCHES ";vtkRenderingQt;")
++      set(HAVE_QVTK TRUE)
++      #PCL_VTK_COMPONENTS is used in the PCLConfig.cmake to refind the required modules.
++      #Pre vtk 9.0, all vtk libraries are linked into pcl_visualizer.
++      #Subprojects can link against pcl_visualizer and directly use VTK-QT libraries.
++      list(APPEND PCL_VTK_COMPONENTS vtkRenderingQt vtkGUISupportQt)
++    else()
++      unset(HAVE_QVTK)
++    endif()
++  else()
++       if(";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";GUISupportQt;" AND ";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingQt;")
++      set(HAVE_QVTK TRUE)
++      #PCL_VTK_COMPONENTS is used in the PCLConfig.cmake to refind the required modules.
++      #Post vtk 9.0, only required libraries are linked against pcl_visualizer.
++      #Subprojects need to manually link to VTK-QT libraries.
++      list(APPEND PCL_VTK_COMPONENTS RenderingQt GUISupportQt)
++    else()
++      unset(HAVE_QVTK)
++    endif()
++  endif()
++endif()
++
++if(PCL_SHARED_LIBS OR (NOT (PCL_SHARED_LIBS) AND NOT (VTK_BUILD_SHARED_LIBS)))
++  if(VTK_VERSION VERSION_LESS 9.0)
++    if(VTK_USE_FILE)
++      include(${VTK_USE_FILE})
++    endif()
++  endif()
++  
++  if(APPLE)
++    option(VTK_USE_COCOA "Use Cocoa for VTK render windows" ON)
++    mark_as_advanced(VTK_USE_COCOA)
++  endif()
++else()
++  set(VTK_FOUND OFF)
++  message("Warning: You are to build PCL in STATIC but VTK is SHARED!")
++  message("Warning: VTK disabled!")
++endif()
++
++message(STATUS "VTK version: ${VTK_VERSION}")
++message(STATUS "VTK rendering backend: ${VTK_RENDERING_BACKEND}")
++
++if(WITH_QT)
++  if(HAVE_QVTK)
++    message(STATUS "VTK Qt support: YES")
++  else()
++    message(STATUS "VTK Qt support: NOTFOUND")
++  endif()
++else()
++  message(STATUS "VTK Qt support: NO")
++endif()
++
++if(VTK_INCLUDE_DIRS)
++  message(STATUS "VTK include: ${VTK_INCLUDE_DIRS}")
++ENDIF()
++
++if(VTK_LIBRARIES)
++  message(STATUS "VTK libs: ${VTK_LIBRARIES}")
++endif()
+
+From c9e644545a0294950a72751f2c07385ebec85661 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:06:43 +0200
+Subject: [PATCH 03/15] Fix IO
+
+---
+ io/CMakeLists.txt     | 21 +++++++++++++++++++--
+ io/src/vtk_lib_io.cpp |  4 ++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/io/CMakeLists.txt b/io/CMakeLists.txt
+index 4c90e31222..d592a86404 100644
+--- a/io/CMakeLists.txt
++++ b/io/CMakeLists.txt
+@@ -329,10 +329,24 @@ endif()
+ set(LIB_NAME "pcl_${SUBSYS_NAME}")
+ 
+ add_definitions(${VTK_DEFINES})
++
+ PCL_ADD_LIBRARY(${LIB_NAME} COMPONENT ${SUBSYS_NAME} SOURCES ${srcs} ${incs} ${compression_incs} ${impl_incs} ${OPENNI_INCLUDES} ${OPENNI2_INCLUDES})
++
+ target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+-link_directories(${VTK_LINK_DIRECTORIES})
+-target_link_libraries("${LIB_NAME}" pcl_common pcl_io_ply ${VTK_LIBRARIES})
++
++target_link_libraries("${LIB_NAME}" pcl_common pcl_io_ply)
++if(VTK_FOUND)
++  if(${VTK_VERSION} VERSION_LESS 9.0)
++    link_directories(${VTK_LINK_DIRECTORIES})
++    target_link_libraries("${LIB_NAME}" ${VTK_LIBRARIES})
++  else()
++    target_link_libraries("${LIB_NAME}" 
++                          VTK::IOImage
++                          VTK::IOGeometry
++                          VTK::IOPLY)
++  endif()
++endif()
++
+ if(PNG_FOUND)
+   target_link_libraries("${LIB_NAME}" ${PNG_LIBRARIES})
+ endif()
+@@ -347,6 +361,9 @@ endif()
+ 
+ if(WITH_OPENNI)
+   target_link_libraries("${LIB_NAME}" ${OPENNI_LIBRARIES})
++  if(VTK_FOUND AND (NOT ${VTK_VERSION} VERSION_LESS 9.0))
++    target_link_libraries("${LIB_NAME}" VTK::FiltersCore VTK::FiltersGeneral)
++  endif()
+ endif()
+ 
+ if(WITH_FZAPI)
+diff --git a/io/src/vtk_lib_io.cpp b/io/src/vtk_lib_io.cpp
+index c04f05f32a..b71615cb94 100644
+--- a/io/src/vtk_lib_io.cpp
++++ b/io/src/vtk_lib_io.cpp
+@@ -348,7 +348,11 @@ pcl::io::vtk2mesh (const vtkSmartPointer<vtkPolyData>& poly_data, pcl::PolygonMe
+ 
+   // Now handle the polygons
+   mesh.polygons.resize (nr_polygons);
++#ifdef VTK_CELL_ARRAY_V2
++  vtkIdType const *cell_points;
++#else
+   vtkIdType* cell_points;
++#endif
+   vtkIdType nr_cell_points;
+   vtkCellArray * mesh_polygons = poly_data->GetPolys ();
+   mesh_polygons->InitTraversal ();
+
+From b599862fa057578d3a77a25a5e279413bf47bdfa Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:07:43 +0200
+Subject: [PATCH 04/15] Fix 2d
+
+---
+ 2d/CMakeLists.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/2d/CMakeLists.txt b/2d/CMakeLists.txt
+index 8bd5411e44..437d23fb47 100644
+--- a/2d/CMakeLists.txt
++++ b/2d/CMakeLists.txt
+@@ -31,8 +31,6 @@ set(impl_incs
+ )
+ 
+ if(${VTK_FOUND})
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   set(VTK_IO_TARGET_LINK_LIBRARIES vtkCommon vtkWidgets vtkIO vtkImaging)
+ endif()
+ 
+
+From 7a55923e34e9621a1a971b20fefebbb383edd23d Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:08:05 +0200
+Subject: [PATCH 05/15] Fix people.
+
+---
+ people/CMakeLists.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/people/CMakeLists.txt b/people/CMakeLists.txt
+index 4778e2f1c5..66cfede896 100644
+--- a/people/CMakeLists.txt
++++ b/people/CMakeLists.txt
+@@ -8,8 +8,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+ endif()
+ 
+
+From a19dd9331ba0621858b20d960142158222390df2 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:08:25 +0200
+Subject: [PATCH 06/15] Fix outofcore
+
+---
+ outofcore/tools/CMakeLists.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/outofcore/tools/CMakeLists.txt b/outofcore/tools/CMakeLists.txt
+index 53c63e3940..f33e8b4475 100644
+--- a/outofcore/tools/CMakeLists.txt
++++ b/outofcore/tools/CMakeLists.txt
+@@ -13,8 +13,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+ 
+   set(srcs outofcore_viewer.cpp
+
+From c55d947f66f83caa2eba3679e78eb904bd815417 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Sun, 8 Nov 2020 20:55:42 +0100
+Subject: [PATCH 07/15] Fix registration
+
+---
+ .../include/pcl/registration/impl/ppf_registration.hpp         | 3 ++-
+ registration/include/pcl/registration/ppf_registration.h       | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/registration/include/pcl/registration/impl/ppf_registration.hpp b/registration/include/pcl/registration/impl/ppf_registration.hpp
+index f8fbb48e54..c58df563ea 100644
+--- a/registration/include/pcl/registration/impl/ppf_registration.hpp
++++ b/registration/include/pcl/registration/impl/ppf_registration.hpp
+@@ -84,7 +84,7 @@ pcl::PPFRegistration<PointSource, PointTarget>::computeTransformation (PointClou
+   PoseWithVotesList voted_poses;
+   // Consider every <scene_reference_point_sampling_rate>-th point as the reference point => fix s_r
+   float f1, f2, f3, f4;
+-  for (std::size_t scene_reference_index = 0; scene_reference_index < target_->size (); scene_reference_index += scene_reference_point_sampling_rate_)
++  for (index_t scene_reference_index = 0; scene_reference_index < static_cast<index_t>(target_->size()); scene_reference_index += scene_reference_point_sampling_rate_)
+   {
+     Eigen::Vector3f scene_reference_point = (*target_)[scene_reference_index].getVector3fMap (),
+         scene_reference_normal = (*target_)[scene_reference_index].getNormalVector3fMap ();
+diff --git a/registration/include/pcl/registration/ppf_registration.h b/registration/include/pcl/registration/ppf_registration.h
+index fb4f0d8d1c..602cce85ea 100644
+--- a/registration/include/pcl/registration/ppf_registration.h
++++ b/registration/include/pcl/registration/ppf_registration.h
+@@ -260,7 +260,7 @@ namespace pcl
+       PPFHashMapSearch::Ptr search_method_;
+ 
+       /** \brief parameter for the sampling rate of the scene reference points */
+-      unsigned int scene_reference_point_sampling_rate_;
++      uindex_t scene_reference_point_sampling_rate_;
+ 
+       /** \brief position and rotation difference thresholds below which two
+         * poses are considered to be in the same cluster (for the clustering phase of the algorithm) */
+
+From b7f077396ae612535df7aa83f8abe9f16bfc77a0 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:08:42 +0200
+Subject: [PATCH 08/15] Fix surface.
+
+---
+ surface/CMakeLists.txt                  | 26 +++++++++++++++++++------
+ surface/src/vtk_smoothing/vtk_utils.cpp |  5 +++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/surface/CMakeLists.txt b/surface/CMakeLists.txt
+index e5e4231138..6ab1917f08 100644
+--- a/surface/CMakeLists.txt
++++ b/surface/CMakeLists.txt
+@@ -4,7 +4,7 @@ set(SUBSYS_DEPS common search kdtree octree)
+ 
+ set(build TRUE)
+ PCL_SUBSYS_OPTION(build "${SUBSYS_NAME}" "${SUBSYS_DESC}" ON)
+-PCL_SUBSYS_DEPEND(build "${SUBSYS_NAME}" DEPS ${SUBSYS_DEPS} OPT_DEPS qhull)
++PCL_SUBSYS_DEPEND(build "${SUBSYS_NAME}" DEPS ${SUBSYS_DEPS} EXT_DEPS vtk OPT_DEPS qhull)
+ 
+ PCL_ADD_DOC("${SUBSYS_NAME}")
+ 
+@@ -149,19 +149,32 @@ set(impl_incs
+ )
+ 
+ set(LIB_NAME "pcl_${SUBSYS_NAME}")
++
+ include_directories(
+   "${CMAKE_CURRENT_SOURCE_DIR}/include"
+   "${CMAKE_CURRENT_SOURCE_DIR}"
+ )
+-include_directories(SYSTEM
+-  ${VTK_INCLUDE_DIRS}
+-)
+-link_directories(${VTK_LIBRARY_DIRS})
+ PCL_ADD_LIBRARY(${LIB_NAME} COMPONENT ${SUBSYS_NAME} SOURCES ${srcs} ${incs} ${impl_incs} ${VTK_SMOOTHING_INCLUDES} ${POISSON_INCLUDES} ${OPENNURBS_INCLUDES} ${ON_NURBS_INCLUDES})
+-target_link_libraries("${LIB_NAME}" pcl_common pcl_search pcl_kdtree pcl_octree ${VTK_LIBRARIES} ${ON_NURBS_LIBRARIES})
++
++target_link_libraries("${LIB_NAME}" pcl_common pcl_search pcl_kdtree pcl_octree ${ON_NURBS_LIBRARIES})
++
++if(VTK_FOUND)
++  if(${VTK_VERSION} VERSION_LESS 9.0)
++    include_directories(SYSTEM ${VTK_INCLUDE_DIRS})
++    link_directories(${VTK_LIBRARY_DIRS})
++    target_link_libraries("${LIB_NAME}" ${VTK_LIBRARIES})
++  else()
++    target_link_libraries("${LIB_NAME}" VTK::CommonDataModel
++                                        VTK::CommonExecutionModel
++                                        VTK::FiltersModeling
++                                        VTK::FiltersCore)
++  endif()
++endif()
++
+ if(QHULL_FOUND)
+   target_link_libraries("${LIB_NAME}" ${QHULL_LIBRARIES})
+ endif()
++
+ PCL_MAKE_PKGCONFIG(${LIB_NAME} COMPONENT ${SUBSYS_NAME} DESC ${SUBSYS_DESC} PCL_DEPS ${SUBSYS_DEPS})
+ 
+ # Install include files
+@@ -178,6 +191,7 @@ endif()
+ if(VTK_FOUND AND NOT ANDROID)
+   PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/vtk_smoothing" ${VTK_SMOOTHING_INCLUDES})
+ endif()
++
+ if(WIN32)
+   target_link_libraries("${LIB_NAME}" Rpcrt4.lib)
+ endif()
+diff --git a/surface/src/vtk_smoothing/vtk_utils.cpp b/surface/src/vtk_smoothing/vtk_utils.cpp
+index d2cc1aa617..8c0a944964 100644
+--- a/surface/src/vtk_smoothing/vtk_utils.cpp
++++ b/surface/src/vtk_smoothing/vtk_utils.cpp
+@@ -48,6 +48,7 @@
+ #include <vtkPolyData.h>
+ #include <vtkPointData.h>
+ #include <vtkFloatArray.h>
++#include <vtkUnsignedCharArray.h>
+ 
+ // Support for VTK 7.1 upwards
+ #ifdef vtkGenericDataArray_h
+@@ -154,7 +155,11 @@ pcl::VTKUtils::vtk2mesh (const vtkSmartPointer<vtkPolyData>& poly_data, pcl::Pol
+   }
+ 
+   mesh.polygons.resize (nr_polygons);
++#ifdef VTK_CELL_ARRAY_V2
++  vtkIdType const *cell_points;
++#else
+   vtkIdType* cell_points;
++#endif
+   vtkIdType nr_cell_points;
+   vtkCellArray * mesh_polygons = poly_data->GetPolys ();
+   mesh_polygons->InitTraversal ();
+
+From 0ac66840b23a78c11b220c2141d57c9eac527a70 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:09:03 +0200
+Subject: [PATCH 09/15] Fix visualization.
+
+---
+ cmake/pcl_find_vtk.cmake                      |   4 +-
+ visualization/CMakeLists.txt                  |  61 ++++++-
+ .../pcl/visualization/common/actor_map.h      |   1 +
+ .../common/ren_win_interact_map.h             |   3 +-
+ .../pcl/visualization/impl/pcl_visualizer.hpp | 109 ++++++-----
+ .../pcl/visualization/interactor_style.h      |   2 +
+ .../include/pcl/visualization/pcl_plotter.h   |  12 +-
+ .../pcl/visualization/pcl_visualizer.h        |  13 +-
+ .../pcl/visualization/qvtk_compatibility.h    |  19 +-
+ visualization/include/pcl/visualization/vtk.h | 170 +-----------------
+ visualization/src/cloud_viewer.cpp            |   3 +
+ visualization/src/histogram_visualizer.cpp    |   1 -
+ visualization/src/interactor_style.cpp        |   3 +-
+ visualization/src/pcl_visualizer.cpp          | 141 +++++++++++----
+ visualization/src/point_picking_event.cpp     |   1 -
+ 15 files changed, 264 insertions(+), 279 deletions(-)
+
+diff --git a/visualization/CMakeLists.txt b/visualization/CMakeLists.txt
+index 260e8b86dc..e9ead2ac0e 100644
+--- a/visualization/CMakeLists.txt
++++ b/visualization/CMakeLists.txt
+@@ -63,6 +63,14 @@ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+   )
+ endif()
+ 
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  if(NOT (";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;"))
++    list(REMOVE_ITEM srcs
++      src/pcl_painter2D.cpp
++    )
++  endif()  
++endif()
++
+ set(incs
+   "include/pcl/${SUBSYS_NAME}/eigen.h"
+   "include/pcl/${SUBSYS_NAME}/boost.h"
+@@ -117,6 +125,7 @@ set(vtk_incs
+   "include/pcl/${SUBSYS_NAME}/vtk/pcl_image_canvas_source_2d.h"
+   "include/pcl/${SUBSYS_NAME}/vtk/pcl_context_item.h"
+   "include/pcl/${SUBSYS_NAME}/vtk/vtkRenderWindowInteractorFix.h"
++  "include/pcl/${SUBSYS_NAME}/vtk/pcl_vtk_compatibility.h"
+ )
+ 
+ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+@@ -126,6 +135,15 @@ if(VTK_RENDERING_BACKEND_OPENGL_VERSION VERSION_LESS 2)
+   )
+ endif()
+ 
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  if(NOT (";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;"))
++    
++    list(REMOVE_ITEM incs
++      "include/pcl/${SUBSYS_NAME}/pcl_painter2D.h"
++    )
++  endif()
++endif()
++
+ # on apple, a workaround is used for the cocoa render window interactor
+ if(APPLE)
+   list(APPEND srcs
+@@ -135,14 +153,43 @@ endif()
+ set(LIB_NAME "pcl_${SUBSYS_NAME}")
+ PCL_ADD_LIBRARY(${LIB_NAME} COMPONENT ${SUBSYS_NAME} SOURCES ${srcs} ${incs} ${common_incs} ${impl_incs} ${common_impl_incs} ${vtk_incs})
+ 
+-target_include_directories("${LIB_NAME}" SYSTEM PUBLIC ${VTK_INCLUDE_DIRS})
+-
+ # apple workaround (continued)
+ if(APPLE)
+   target_link_libraries("${LIB_NAME}" "-framework Cocoa")
+ endif()
+ 
+-target_link_libraries("${LIB_NAME}" pcl_common pcl_io pcl_kdtree ${VTK_LIBRARIES} ${OPENGL_LIBRARIES})
++target_link_libraries("${LIB_NAME}" pcl_common pcl_io pcl_kdtree ${OPENGL_LIBRARIES})
++
++if(${VTK_VERSION} VERSION_LESS 9.0)
++  target_include_directories("${LIB_NAME}" SYSTEM PUBLIC ${VTK_INCLUDE_DIRS})
++  target_link_libraries("${LIB_NAME}" ${VTK_LIBRARIES})
++else()
++  #Some libs are referenced through depending on IO
++  target_link_libraries("${LIB_NAME}"
++                        VTK::ChartsCore
++                        VTK::CommonColor
++                        VTK::CommonDataModel
++                        VTK::FiltersExtraction
++                        VTK::FiltersGeometry
++                        VTK::FiltersGeneral
++                        VTK::FiltersModeling
++                        VTK::FiltersSources
++                        VTK::IOImage
++                        VTK::IOPLY
++                        VTK::ImagingSources
++                        VTK::InteractionImage
++                        VTK::InteractionStyle
++                        VTK::RenderingAnnotation
++                        VTK::RenderingContext2D
++                        VTK::RenderingFreeType
++                        VTK::RenderingLOD
++                        VTK::RenderingOpenGL2
++                        VTK::ViewsContext2D)
++                        
++  if(";${VTK_AVAILABLE_COMPONENTS};" MATCHES ";RenderingContextOpenGL2;")
++    target_link_libraries("${LIB_NAME}" VTK::RenderingContextOpenGL2)
++  endif()
++endif()
+ 
+ set(EXT_DEPS "")
+ if(WITH_OPENNI)
+@@ -163,6 +210,7 @@ endif()
+ if(WITH_RSSDK)
+   list(APPEND EXT_DEPS rssdk)
+ endif()
++
+ PCL_MAKE_PKGCONFIG(${LIB_NAME} COMPONENT ${SUBSYS_NAME} DESC ${SUBSYS_DESC} PCL_DEPS ${SUBSYS_DEPS} EXT_DEPS ${EXT_DEPS})
+ 
+ # Install include files
+@@ -172,6 +220,13 @@ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/impl" ${impl_incs})
+ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/common/impl" ${common_impl_incs})
+ PCL_ADD_INCLUDES("${SUBSYS_NAME}" "${SUBSYS_NAME}/vtk" ${vtk_incs})
+ 
++#TODO: Update when CMAKE 3.10 is available
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  vtk_module_autoinit(TARGETS "${LIB_NAME}" 
++                      MODULES VTK::RenderingOpenGL2
++                              VTK::RenderingFreeType)
++endif()
++
+ if(BUILD_TESTS)
+   add_subdirectory(test)
+ endif()
+diff --git a/visualization/include/pcl/visualization/common/actor_map.h b/visualization/include/pcl/visualization/common/actor_map.h
+index 0fb1903b8c..acd9fd247f 100644
+--- a/visualization/include/pcl/visualization/common/actor_map.h
++++ b/visualization/include/pcl/visualization/common/actor_map.h
+@@ -43,6 +43,7 @@
+ 
+ #include <vtkLODActor.h>
+ #include <vtkSmartPointer.h>
++#include <vtkIdTypeArray.h>
+ 
+ #include <map>
+ #include <unordered_map>
+diff --git a/visualization/include/pcl/visualization/common/ren_win_interact_map.h b/visualization/include/pcl/visualization/common/ren_win_interact_map.h
+index 451456610e..1841f13a28 100644
+--- a/visualization/include/pcl/visualization/common/ren_win_interact_map.h
++++ b/visualization/include/pcl/visualization/common/ren_win_interact_map.h
+@@ -41,8 +41,9 @@
+ #include <map>
+ #include <string>
+ 
++#include <vtkXYPlotActor.h>
++
+ template <typename T> class vtkSmartPointer;
+-class vtkXYPlotActor;
+ class vtkRenderer;
+ class vtkRenderWindow;
+ class vtkRenderWindowInteractor;
+diff --git a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+index 14fbdd6636..e8aac7eac3 100644
+--- a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
++++ b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+@@ -61,6 +61,7 @@
+ #include <vtkTextProperty.h>
+ #include <vtkLODActor.h>
+ #include <vtkLineSource.h>
++#include <pcl/common/utils.h> // pcl::utils::ignore
+ 
+ #include <pcl/visualization/common/shapes.h>
+ 
+@@ -270,11 +271,37 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+     points->SetNumberOfPoints (nr_points);
+   }
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+ 
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++#endif
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -304,10 +331,35 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+   if (!vertices)
+     vertices = vtkSmartPointer<vtkCellArray>::New ();
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++#endif
+ }
+ 
+ ////////////////////////////////////////////////////////////////////////////////////////////
+@@ -1701,32 +1753,8 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (
+   {
+     // Create polys from polyMesh.polygons
+     vtkSmartPointer<vtkCellArray> cell_array = vtkSmartPointer<vtkCellArray>::New ();
+-    vtkIdType *cell = cell_array->WritePointer (vertices.size (), vertices.size () * (max_size_of_polygon + 1));
+-    int idx = 0;
+-    if (!lookup.empty ())
+-    {
+-      for (std::size_t i = 0; i < vertices.size (); ++i, ++idx)
+-      {
+-        std::size_t n_points = vertices[i].vertices.size ();
+-        *cell++ = n_points;
+-        //cell_array->InsertNextCell (n_points);
+-        for (std::size_t j = 0; j < n_points; j++, ++idx)
+-          *cell++ = lookup[vertices[i].vertices[j]];
+-          //cell_array->InsertCellPoint (lookup[vertices[i].vertices[j]]);
+-      }
+-    }
+-    else
+-    {
+-      for (std::size_t i = 0; i < vertices.size (); ++i, ++idx)
+-      {
+-        std::size_t n_points = vertices[i].vertices.size ();
+-        *cell++ = n_points;
+-        //cell_array->InsertNextCell (n_points);
+-        for (std::size_t j = 0; j < n_points; j++, ++idx)
+-          *cell++ = vertices[i].vertices[j];
+-          //cell_array->InsertCellPoint (vertices[i].vertices[j]);
+-      }
+-    }
++    const auto idx = details::fillCells(lookup,vertices,cell_array, max_size_of_polygon);
++
+     vtkSmartPointer<vtkPolyData> polydata;
+     allocVtkPolyData (polydata);
+     cell_array->GetData ()->SetNumberOfValues (idx);
+@@ -1878,28 +1906,8 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+ 
+   // Update the cells
+   cells = vtkSmartPointer<vtkCellArray>::New ();
+-  vtkIdType *cell = cells->WritePointer (verts.size (), verts.size () * (max_size_of_polygon + 1));
+-  int idx = 0;
+-  if (!lookup.empty ())
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = lookup[verts[i].vertices[j]];
+-    }
+-  }
+-  else
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = verts[i].vertices[j];
+-    }
+-  }
++  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++
+   cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+diff --git a/visualization/include/pcl/visualization/interactor_style.h b/visualization/include/pcl/visualization/interactor_style.h
+index b4c11200b8..d1faa0beda 100644
+--- a/visualization/include/pcl/visualization/interactor_style.h
++++ b/visualization/include/pcl/visualization/interactor_style.h
+@@ -50,6 +50,8 @@
+ #include <boost/signals2/signal.hpp>
+ #endif
+ #include <vtkInteractorStyleRubberBandPick.h>
++#include <vtkRendererCollection.h>
++#include <vtkRenderWindow.h>
+ 
+ class vtkRendererCollection;
+ class vtkLegendScaleActor;
+diff --git a/visualization/include/pcl/visualization/pcl_plotter.h b/visualization/include/pcl/visualization/pcl_plotter.h
+index f897978672..93f78695d1 100644
+--- a/visualization/include/pcl/visualization/pcl_plotter.h
++++ b/visualization/include/pcl/visualization/pcl_plotter.h
+@@ -48,16 +48,16 @@
+ #include <pcl/point_cloud.h>
+ #include <pcl/common/io.h>
+ 
+-class vtkRenderWindow;
+-class vtkRenderWindowInteractor;
+-class vtkContextView;
+-class vtkChartXY;
+-class vtkColorSeries;
+-
++#include <vtkContextView.h>
++#include <vtkChartXY.h>
++#include <vtkColorSeries.h>
+ #include <vtkSmartPointer.h>
+ #include <vtkCommand.h>
+ #include <vtkChart.h>
+ 
++class vtkRenderWindow;
++class vtkRenderWindowInteractor;
++
+ namespace pcl
+ {
+   namespace visualization
+diff --git a/visualization/include/pcl/visualization/pcl_visualizer.h b/visualization/include/pcl/visualization/pcl_visualizer.h
+index c57bb6e790..64e14ebf8a 100644
+--- a/visualization/include/pcl/visualization/pcl_visualizer.h
++++ b/visualization/include/pcl/visualization/pcl_visualizer.h
+@@ -53,14 +53,15 @@
+ #include <pcl/visualization/area_picking_event.h>
+ #include <pcl/visualization/interactor_style.h>
+ 
++#include <vtkOrientationMarkerWidget.h>
++#include <vtkRenderWindowInteractor.h>
++
+ // VTK includes
+ class vtkPolyData;
+ class vtkTextActor;
+ class vtkRenderWindow;
+-class vtkOrientationMarkerWidget;
+ class vtkAppendPolyData;
+ class vtkRenderWindow;
+-class vtkRenderWindowInteractor;
+ class vtkTransform;
+ class vtkInteractorStyle;
+ class vtkLODActor;
+@@ -68,6 +69,7 @@ class vtkProp;
+ class vtkActor;
+ class vtkDataSet;
+ class vtkUnstructuredGrid;
++class vtkCellArray;
+ 
+ namespace pcl
+ {
+@@ -76,6 +78,11 @@ namespace pcl
+ 
+   namespace visualization
+   {
++    namespace details
++    {
++      vtkIdType fillCells(std::vector<int>& lookup, const std::vector<pcl::Vertices>& vertices, vtkSmartPointer<vtkCellArray> cell_array, int max_size_of_polygon);
++    }
++
+     /** \brief PCL Visualizer main class.
+       * \author Radu B. Rusu
+       * \ingroup visualization
+@@ -2170,7 +2177,7 @@ namespace pcl
+                                         vtkSmartPointer<vtkPolyData> &polydata,
+                                         vtkSmartPointer<vtkIdTypeArray> &initcells);
+ 
+-        /** \brief Converts a PCL templated PointCloud object to a vtk polydata object.
++        /** \brief Converts a PCL object to a vtk polydata object.
+           * \param[in] geometry_handler the geometry handler object used to extract the XYZ data
+           * \param[out] polydata the resultant polydata containing the cloud
+           * \param[out] initcells a list of cell indices used for the conversion. This can be set once and then passed
+
+diff --git a/visualization/include/pcl/visualization/vtk.h b/visualization/include/pcl/visualization/vtk.h
+index 9f6df75a51..aa94431611 100644
+--- a/visualization/include/pcl/visualization/vtk.h
++++ b/visualization/include/pcl/visualization/vtk.h
+@@ -1,172 +1,10 @@
+ /*
+- * Software License Agreement (BSD License)
++ * SPDX-License-Identifier: BSD-3-Clause
+  *
+  *  Point Cloud Library (PCL) - www.pointclouds.org
+- *  Copyright (c) 2009-2012, Willow Garage, Inc.
+- *  Copyright (c) 2012-, Open Perception, Inc.
+- *
+- *  All rights reserved.
+- *
+- *  Redistribution and use in source and binary forms, with or without
+- *  modification, are permitted provided that the following conditions
+- *  are met:
+- *
+- *   * Redistributions of source code must retain the above copyright
+- *     notice, this list of conditions and the following disclaimer.
+- *   * Redistributions in binary form must reproduce the above
+- *     copyright notice, this list of conditions and the following
+- *     disclaimer in the documentation and/or other materials provided
+- *     with the distribution.
+- *   * Neither the name of the copyright holder(s) nor the names of its
+- *     contributors may be used to endorse or promote products derived
+- *     from this software without specific prior written permission.
+- *
+- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+- *  POSSIBILITY OF SUCH DAMAGE.
+- *
+- * $Id$
++ *  Copyright (c) 2020-, Open Perception
+  *
++ *  All rights reserved
+  */
+ 
+-#pragma once
+-
+-#if defined __GNUC__
+-#pragma GCC system_header
+-#ifdef __DEPRECATED
+-#undef __DEPRECATED
+-#define __DEPRECATED_DISABLED__
+-#endif
+-#endif
+-
+-#include <vtkVersion.h>
+-#include <vtkAppendPolyData.h>
+-#include <vtkAssemblyPath.h>
+-#include <vtkAxesActor.h>
+-#include <vtkActor.h>
+-#include <vtkBoxRepresentation.h>
+-#include <vtkBoxWidget.h>
+-#include <vtkBoxWidget2.h>
+-#include <vtkCellData.h>
+-#include <vtkMath.h>
+-#include <vtkLoopSubdivisionFilter.h>
+-#include <vtkLineSource.h>
+-#include <vtkLegendScaleActor.h>
+-#include <vtkLightKit.h>
+-#include <vtkPlatonicSolidSource.h>
+-#include <vtkPropPicker.h>
+-#include <vtkGeneralTransform.h>
+-#include <vtkSmartPointer.h>
+-#include <vtkDataSet.h>
+-#include <vtkDataSetSurfaceFilter.h>
+-#include <vtkExecutive.h>
+-#include <vtkPolygon.h>
+-#include <vtkPointPicker.h>
+-#include <vtkUnstructuredGrid.h>
+-#include <vtkConeSource.h>
+-#include <vtkDiskSource.h>
+-#include <vtkPlaneSource.h>
+-#include <vtkSphereSource.h>
+-#include <vtkIdentityTransform.h>
+-#include <vtkTransform.h>
+-#include <vtkTransformPolyDataFilter.h>
+-#include <vtkTubeFilter.h>
+-#include <vtkCubeSource.h>
+-#include <vtkAxes.h>
+-#include <vtkFloatArray.h>
+-#include <vtkPointData.h>
+-#include <vtkPolyData.h>
+-#include <vtkPolyDataReader.h>
+-#include <vtkPolyDataMapper.h>
+-#include <vtkDataSetMapper.h>
+-#include <vtkCellArray.h>
+-#include <vtkCommand.h>
+-#include <vtkCellLocator.h>
+-#include <vtkPLYReader.h>
+-#include <vtkTransformFilter.h>
+-#include <vtkPolyLine.h>
+-#include <vtkVectorText.h>
+-#include <vtkFollower.h>
+-#include <vtkCallbackCommand.h>
+-#include <vtkInteractorStyle.h>
+-#include <vtkInformationVector.h>
+-#include <vtkDataArray.h>
+-#include <vtkUnsignedCharArray.h>
+-#include <vtkPoints.h>
+-#include <vtkRendererCollection.h>
+-#include <vtkPNGWriter.h>
+-#include <vtkWindowToImageFilter.h>
+-#include <vtkInteractorStyleTrackballCamera.h>
+-#include <vtkProperty.h>
+-#include <vtkCamera.h>
+-#include <vtkObjectFactory.h>
+-#include <vtkScalarBarActor.h>
+-#include <vtkScalarsToColors.h>
+-#include <vtkClipPolyData.h>
+-#include <vtkPlanes.h>
+-#include <vtkImageImport.h>
+-#include <vtkImageViewer.h>
+-#include <vtkInteractorStyleImage.h>
+-#include <vtkImageFlip.h>
+-#include <vtkTIFFWriter.h>
+-#include <vtkBMPWriter.h>
+-#include <vtkJPEGWriter.h>
+-#include <vtkImageViewer2.h>
+-#include <vtkRenderWindow.h>
+-#include <vtkXYPlotActor.h>
+-#include <vtkTextProperty.h>
+-#include <vtkProperty2D.h>
+-#include <vtkFieldData.h>
+-#include <vtkDoubleArray.h>
+-#include <vtkLODActor.h>
+-#include <vtkPolyDataWriter.h>
+-#include <vtkTextActor.h>
+-#include <vtkCleanPolyData.h>
+-#include <vtkRenderer.h>
+-#include <vtkObject.h>
+-#include <vtkOrientationMarkerWidget.h>
+-#include <vtkImageReslice.h>
+-#include <vtkImageChangeInformation.h>
+-#include <vtkImageCanvasSource2D.h>
+-#include <vtkImageBlend.h>
+-#include <vtkImageStencilData.h>
+-#include <vtkRenderWindowInteractor.h>
+-#include <vtkChartXY.h>
+-#include <vtkPlot.h>
+-#include <vtkTable.h>
+-#include <vtkContextView.h>
+-#include <vtkContextScene.h>
+-#include <vtkColorSeries.h>
+-#include <vtkAxis.h>
+-#include <vtkSelection.h>
+-
+-#include <vtkHardwareSelector.h>
+-
+-#include <vtkTriangle.h>
+-#include <vtkWorldPointPicker.h>
+-
+-#include <vtkInteractorStyleRubberBandPick.h>
+-#include <vtkInteractorStyleTrackballActor.h>
+-#include <vtkAreaPicker.h>
+-#include <vtkExtractGeometry.h>
+-#include <vtkExtractPolyDataGeometry.h>
+-#include <vtkVertexGlyphFilter.h>
+-#include <vtkIdFilter.h>
+-#include <vtkIdTypeArray.h>
+-#include <vtkImageReader2Factory.h>
+-#include <vtkImageReader2.h>
+-#include <vtkImageData.h>
+-
+-#if defined __GNUC__ && defined __DEPRECATED_DISABLED__
+-#define __DEPRECATED
+-#undef __DEPRECATED_DISABLED__
+-#endif
++PCL_DEPRECATED_HEADER(1, 14, "Use required vtk includes instead.")
+diff --git a/visualization/src/cloud_viewer.cpp b/visualization/src/cloud_viewer.cpp
+index 79e3506e39..d670dbb7ec 100644
+--- a/visualization/src/cloud_viewer.cpp
++++ b/visualization/src/cloud_viewer.cpp
+@@ -40,6 +40,9 @@
+ #include <pcl/visualization/boost.h>
+ #include <pcl/memory.h>
+ 
++#include <vtkOrientationMarkerWidget.h>
++#include <vtkRenderWindowInteractor.h>
++
+ #include <mutex>
+ #include <thread>
+ 
+diff --git a/visualization/src/histogram_visualizer.cpp b/visualization/src/histogram_visualizer.cpp
+index 4daccd4ae3..090e8b5d67 100644
+--- a/visualization/src/histogram_visualizer.cpp
++++ b/visualization/src/histogram_visualizer.cpp
+@@ -45,7 +45,6 @@
+ #include <pcl/visualization/boost.h>
+ 
+ #include <vtkVersion.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkDoubleArray.h>
+ #include <vtkTextProperty.h>
+ #include <vtkRenderWindow.h>
+diff --git a/visualization/src/interactor_style.cpp b/visualization/src/interactor_style.cpp
+index aa55a2de70..db17786bfe 100644
+--- a/visualization/src/interactor_style.cpp
++++ b/visualization/src/interactor_style.cpp
+@@ -36,6 +36,7 @@
+  *
+  */
+ 
++#include <fstream>
+ #include <list>
+ #include <pcl/common/angles.h>
+ #include <pcl/visualization/common/io.h>
+@@ -141,7 +142,7 @@ pcl::visualization::PCLVisualizerInteractorStyle::saveCameraParameters (const st
+ {
+   FindPokedRenderer (Interactor->GetEventPosition ()[0], Interactor->GetEventPosition ()[1]);
+ 
+-  ofstream ofs_cam (file.c_str ());
++  std::ofstream ofs_cam (file.c_str ());
+   if (!ofs_cam.is_open ())
+   {
+     return (false);
+diff --git a/visualization/src/pcl_visualizer.cpp b/visualization/src/pcl_visualizer.cpp
+index 7c39b010c4..79b3d12263 100644
+--- a/visualization/src/pcl_visualizer.cpp
++++ b/visualization/src/pcl_visualizer.cpp
+@@ -51,7 +51,7 @@
+ #include <vtkPolyDataNormals.h>
+ #include <vtkMapper.h>
+ #include <vtkDataSetMapper.h>
+-
++#include <vtkCellArray.h>
+ #include <vtkHardwareSelector.h>
+ #include <vtkSelectionNode.h>
+ 
+@@ -60,6 +60,7 @@
+ 
+ #include <pcl/visualization/boost.h>
+ #include <pcl/visualization/vtk/vtkRenderWindowInteractorFix.h>
++#include <pcl/visualization/vtk/pcl_vtk_compatibility.h>
+ 
+ #if VTK_RENDERING_BACKEND_OPENGL_VERSION < 2
+ #include <pcl/visualization/vtk/vtkVertexBufferObjectMapper.h>
+@@ -82,7 +83,6 @@
+ #include <vtkAxesActor.h>
+ #include <vtkRenderWindowInteractor.h>
+ #include <vtkAreaPicker.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkOpenGLRenderWindow.h>
+ #include <vtkJPEGReader.h>
+ #include <vtkBMPReader.h>
+@@ -122,6 +122,63 @@
+   #undef far
+ #endif
+ 
++vtkIdType
++pcl::visualization::details::fillCells(std::vector<int>& lookup, const std::vector<pcl::Vertices>& vertices, vtkSmartPointer<vtkCellArray> cell_array, int max_size_of_polygon)
++{
++#ifdef VTK_CELL_ARRAY_V2
++  pcl::utils::ignore(max_size_of_polygon);
++
++  if (!lookup.empty())
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      cell_array->InsertNextCell(n_points);
++      for (const auto& vertj : verti.vertices)
++        cell_array->InsertCellPoint(lookup[vertj]);
++    }
++  }
++  else
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      cell_array->InsertNextCell(n_points);
++      for (const auto& vertj : verti.vertices)
++        cell_array->InsertCellPoint(vertj);
++    }
++  }
++#else
++  vtkIdType* cell = cell_array->WritePointer(vertices.size(), vertices.size() * (max_size_of_polygon + 1));
++
++  if (!lookup.empty())
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      *cell++ = n_points;
++      for (const auto& vertj : verti.vertices)
++        *cell++ = lookup[vertj];
++    }
++  }
++  else
++  {
++    for (const auto& verti : vertices)
++    {
++      std::size_t n_points = verti.vertices.size();
++      *cell++ = n_points;
++      for (const auto& vertj : verti.vertices)
++        *cell++ = vertj;
++    }
++  }
++#endif
++
++  const auto idx = vertices.size() + std::accumulate(vertices.begin(), vertices.end(), static_cast<vtkIdType>(0),
++    [](const auto& sum, const auto& vertex) { return sum + vertex.vertices.size(); });
++
++  return idx;
++}
++
+ /////////////////////////////////////////////////////////////////////////////////////////////
+ pcl::visualization::PCLVisualizer::PCLVisualizer (const std::string &name, const bool create_interactor)
+   : update_fps_ (vtkSmartPointer<FPSCallback>::New ())
+@@ -521,13 +578,14 @@ void
+ pcl::visualization::PCLVisualizer::spinOnce (int time, bool force_redraw)
+ {
+   resetStoppedFlag ();
+-  #if (defined (__APPLE__))
+-    if (!win_->IsDrawable ())
+-    {
+-      close ();
+-      return;
+-    }
+-  #endif
++
++#if VTK_MAJOR_VERSION < 9 && defined (__APPLE__)
++  if (!win_->IsDrawable ())
++  {
++    close ();
++    return;
++  }
++#endif
+ 
+   if (!interactor_)
+     return;
+@@ -1262,7 +1320,6 @@ pcl::visualization::PCLVisualizer::createActorFromVTKDataSet (const vtkSmartPoin
+   //actor->SetNumberOfCloudPoints (std::max<vtkIdType> (1, data->GetNumberOfPoints () / 10));
+   actor->GetProperty ()->SetInterpolationToFlat ();
+ }
+-
+ /////////////////////////////////////////////////////////////////////////////////////////////
+ void
+ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+@@ -1291,10 +1348,36 @@ pcl::visualization::PCLVisualizer::convertPointCloudToVTKPolyData (
+   if (!vertices)
+     vertices = vtkSmartPointer<vtkCellArray>::New ();
+ 
++#ifdef VTK_CELL_ARRAY_V2
++  // TODO: Remove when VTK 6,7,8 is unsupported
++  pcl::utils::ignore(initcells);
++
++  auto numOfCells = vertices->GetNumberOfCells();
++
++  // If we have less cells than points, add new cells.
++  if (numOfCells < nr_points)
++  {
++    for (int i = numOfCells; i < nr_points; i++)
++    {
++      vertices->InsertNextCell(1);
++      vertices->InsertCellPoint(i);
++    }
++  }
++  // if we too many cells than points, set size (doesn't free excessive memory)
++  else if (numOfCells > nr_points)
++  {
++    vertices->ResizeExact(nr_points, nr_points);
++  }
++
++  polydata->SetPoints(points);
++  polydata->SetVerts(vertices);
++
++#else
+   vtkSmartPointer<vtkIdTypeArray> cells = vertices->GetData ();
+   updateCells (cells, initcells, nr_points);
+   // Set the cells and the vertices
+   vertices->SetCells (nr_points, cells);
++#endif
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -3150,28 +3233,9 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+ 
+   // Update the cells
+   cells = vtkSmartPointer<vtkCellArray>::New ();
+-  vtkIdType *cell = cells->WritePointer (verts.size (), verts.size () * (max_size_of_polygon + 1));
+-  int idx = 0;
+-  if (!lookup.empty ())
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = lookup[verts[i].vertices[j]];
+-    }
+-  }
+-  else
+-  {
+-    for (std::size_t i = 0; i < verts.size (); ++i, ++idx)
+-    {
+-      std::size_t n_points = verts[i].vertices.size ();
+-      *cell++ = n_points;
+-      for (std::size_t j = 0; j < n_points; j++, cell++, ++idx)
+-        *cell = verts[i].vertices[j];
+-    }
+-  }
++  
++  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++
+   cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+@@ -3541,7 +3605,8 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+ 
+   //center object
+   double CoM[3];
+-  vtkIdType npts_com = 0, *ptIds_com = nullptr;
++  vtkIdType npts_com = 0;
++  vtkCellPtsPtr ptIds_com = nullptr;
+   vtkSmartPointer<vtkCellArray> cells_com = polydata->GetPolys ();
+ 
+   double center[3], p1_com[3], p2_com[3], p3_com[3], totalArea_com = 0;
+@@ -3600,10 +3665,11 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+   // * Compute area of the mesh
+   //////////////////////////////
+   vtkSmartPointer<vtkCellArray> cells = mapper->GetInput ()->GetPolys ();
+-  vtkIdType npts = 0, *ptIds = nullptr;
++  vtkIdType npts = 0;
++  vtkCellPtsPtr ptIds = nullptr;
+ 
+   double p1[3], p2[3], p3[3], totalArea = 0;
+-  for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds);)
++  for (cells->InitTraversal (); cells->GetNextCell(npts, ptIds);)
+   {
+     polydata->GetPoint (ptIds[0], p1);
+     polydata->GetPoint (ptIds[1], p2);
+@@ -3819,7 +3885,8 @@ pcl::visualization::PCLVisualizer::renderViewTesselatedSphere (
+     polydata->BuildCells ();
+ 
+     vtkSmartPointer<vtkCellArray> cells = polydata->GetPolys ();
+-    vtkIdType npts = 0, *ptIds = nullptr;
++    vtkIdType npts = 0;
++    vtkCellPtsPtr ptIds = nullptr;
+ 
+     double p1[3], p2[3], p3[3], area, totalArea = 0;
+     for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds);)
+@@ -4029,9 +4096,9 @@ pcl::visualization::PCLVisualizer::fromHandlersToScreen (
+ 
+   vtkSmartPointer<vtkPolyData> polydata;
+   vtkSmartPointer<vtkIdTypeArray> initcells;
++
+   // Convert the PointCloud to VTK PolyData
+   convertPointCloudToVTKPolyData (geometry_handler, polydata, initcells);
+-  // use the given geometry handler
+ 
+   // Get the colors from the handler
+   bool has_colors = false;
+diff --git a/visualization/src/point_picking_event.cpp b/visualization/src/point_picking_event.cpp
+index 2c38709666..c0f342ed3c 100644
+--- a/visualization/src/point_picking_event.cpp
++++ b/visualization/src/point_picking_event.cpp
+@@ -49,7 +49,6 @@
+ #include <vtkPointData.h>
+ #include <vtkVertexGlyphFilter.h>
+ #include <vtkPlanes.h>
+-#include <vtkXYPlotActor.h>
+ #include <vtkRenderer.h>
+ #include <vtkRenderWindow.h>
+ 
+
+From 972af4c9d61797ce14c936632da9fb3938ab1309 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:09:21 +0200
+Subject: [PATCH 10/15] Fix gpu.
+
+---
+ gpu/kinfu/tools/CMakeLists.txt             | 2 --
+ gpu/kinfu_large_scale/tools/CMakeLists.txt | 2 --
+ gpu/people/tools/CMakeLists.txt            | 2 --
+ 3 files changed, 6 deletions(-)
+
+diff --git a/gpu/kinfu/tools/CMakeLists.txt b/gpu/kinfu/tools/CMakeLists.txt
+index 8ef3d920df..691b4d875c 100644
+--- a/gpu/kinfu/tools/CMakeLists.txt
++++ b/gpu/kinfu/tools/CMakeLists.txt
+@@ -8,8 +8,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+ endif()
+ 
+diff --git a/gpu/kinfu_large_scale/tools/CMakeLists.txt b/gpu/kinfu_large_scale/tools/CMakeLists.txt
+index 9df2535a5c..65f63aa8b8 100644
+--- a/gpu/kinfu_large_scale/tools/CMakeLists.txt
++++ b/gpu/kinfu_large_scale/tools/CMakeLists.txt
+@@ -8,8 +8,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+ endif()
+ 
+diff --git a/gpu/people/tools/CMakeLists.txt b/gpu/people/tools/CMakeLists.txt
+index 3d45dbc42a..83cf9b4b60 100644
+--- a/gpu/people/tools/CMakeLists.txt
++++ b/gpu/people/tools/CMakeLists.txt
+@@ -6,8 +6,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+ endif()
+ 
+
+From dcd2dd9065561a1012e942ae0c99faf10eac8560 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:09:49 +0200
+Subject: [PATCH 11/15] Fix tools.
+
+---
+ tools/CMakeLists.txt        | 8 ++++++++
+ tools/mesh_sampling.cpp     | 7 +++++--
+ tools/openni_save_image.cpp | 6 +++++-
+ tools/pcd_viewer.cpp        | 1 -
+ tools/virtual_scanner.cpp   | 7 ++++++-
+ 5 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+index 1911f7b9f4..5bfe6e94cb 100644
+--- a/tools/CMakeLists.txt
++++ b/tools/CMakeLists.txt
+@@ -200,12 +200,20 @@ else()
+ 
+   PCL_ADD_EXECUTABLE(pcl_obj2pcd COMPONENT ${SUBSYS_NAME} SOURCES obj2pcd.cpp)
+   target_link_libraries(pcl_obj2pcd pcl_common pcl_io)
++  #TODO: Update when CMAKE 3.10 is available
++  if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++    target_link_libraries(pcl_obj2pcd VTK::FiltersCore)
++  endif()
+ 
+   PCL_ADD_EXECUTABLE(pcl_obj2ply COMPONENT ${SUBSYS_NAME} SOURCES obj2ply.cpp)
+   target_link_libraries(pcl_obj2ply pcl_common pcl_io)
+ 
+   PCL_ADD_EXECUTABLE(pcl_vtk2pcd COMPONENT ${SUBSYS_NAME} SOURCES vtk2pcd.cpp)
+   target_link_libraries(pcl_vtk2pcd pcl_common pcl_io)
++  #TODO: Update when CMAKE 3.10 is available
++  if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++    target_link_libraries(pcl_vtk2pcd VTK::FiltersCore)
++  endif()
+ 
+   if(BUILD_visualization)
+     PCL_ADD_EXECUTABLE(pcl_obj_rec_ransac_model_opps COMPONENT ${SUBSYS_NAME} SOURCES obj_rec_ransac_model_opps.cpp)
+diff --git a/tools/mesh_sampling.cpp b/tools/mesh_sampling.cpp
+index 25a5b4bfad..5e6272201d 100644
+--- a/tools/mesh_sampling.cpp
++++ b/tools/mesh_sampling.cpp
+@@ -36,6 +36,7 @@
+  */
+ 
+ #include <pcl/visualization/pcl_visualizer.h>
++#include <pcl/visualization/vtk/pcl_vtk_compatibility.h>
+ #include <pcl/io/pcd_io.h>
+ #include <pcl/io/vtk_lib_io.h>
+ #include <pcl/common/transforms.h>
+@@ -87,7 +88,7 @@ randPSurface (vtkPolyData * polydata, std::vector<double> * cumulativeAreas, dou
+ 
+   double A[3], B[3], C[3];
+   vtkIdType npts = 0;
+-  vtkIdType *ptIds = nullptr;
++  vtkCellPtsPtr ptIds = nullptr;
+   polydata->GetCellPoints (el, npts, ptIds);
+   polydata->GetPoint (ptIds[0], A);
+   polydata->GetPoint (ptIds[1], B);
+@@ -138,7 +139,8 @@ uniform_sampling (vtkSmartPointer<vtkPolyData> polydata, std::size_t n_samples,
+ 
+   double p1[3], p2[3], p3[3], totalArea = 0;
+   std::vector<double> cumulativeAreas (cells->GetNumberOfCells (), 0);
+-  vtkIdType npts = 0, *ptIds = nullptr;
++  vtkIdType npts = 0;
++  vtkCellPtsPtr ptIds = nullptr;
+   std::size_t cellId = 0;
+   for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds); cellId++)
+   {
+
+diff --git a/tools/openni_save_image.cpp b/tools/openni_save_image.cpp
+index 66f9787227..f579e4ca4e 100644
+--- a/tools/openni_save_image.cpp
++++ b/tools/openni_save_image.cpp
+@@ -39,9 +39,13 @@
+ #include <pcl/io/openni_grabber.h>
+ #include <pcl/io/openni_camera/openni_driver.h>
+ #include <pcl/console/parse.h>
+-#include <pcl/visualization/vtk.h>
+ #include <pcl/visualization/pcl_visualizer.h>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkImageImport.h>
++#include <vtkTIFFWriter.h>
++#include <vtkImageFlip.h>
++
+ #include "boost.h"
+ 
+ #include <mutex>
+diff --git a/tools/virtual_scanner.cpp b/tools/virtual_scanner.cpp
+index 9b0586bf9f..89e5bbc153 100644
+--- a/tools/virtual_scanner.cpp
++++ b/tools/virtual_scanner.cpp
+@@ -54,7 +54,11 @@
+ #include <pcl/memory.h>  // for pcl::make_shared
+ #include <pcl/point_types.h>
+ #include <pcl/console/parse.h>
+-#include <pcl/visualization/vtk.h>
++#include <vtkGeneralTransform.h>
++#include <vtkPlatonicSolidSource.h>
++#include <vtkLoopSubdivisionFilter.h>
++#include <vtkCellLocator.h>
++#include <vtkMath.h>
+ 
+ #include <boost/algorithm/string.hpp>  // for boost::is_any_of, boost::split, boost::token_compress_on, boost::trim
+ #include <boost/filesystem.hpp>  // for boost::filesystem::create_directories, boost::filesystem::exists, boost::filesystem::extension, boost::filesystem::path
+
+From 3041fb121f8dd85c327684b467219ee03f147c20 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 23 Oct 2020 22:10:05 +0200
+Subject: [PATCH 12/15] Fix examples.
+
+---
+ examples/keypoints/CMakeLists.txt    | 9 ++++-----
+ examples/outofcore/CMakeLists.txt    | 1 -
+ examples/segmentation/CMakeLists.txt | 1 -
+ examples/stereo/CMakeLists.txt       | 1 -
+ examples/surface/CMakeLists.txt      | 1 -
+ 5 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/examples/keypoints/CMakeLists.txt b/examples/keypoints/CMakeLists.txt
+index 133bfed82a..9bc3bc3be8 100644
+--- a/examples/keypoints/CMakeLists.txt
++++ b/examples/keypoints/CMakeLists.txt
+@@ -6,12 +6,11 @@ PCL_SUBSYS_DEPEND(build ${SUBSYS_NAME} DEPS visualization)
+ 
+ ## Find VTK
+ if(NOT VTK_FOUND)
+-    set(DEFAULT FALSE)
+-    set(REASON "VTK was not found.")
++  set(DEFAULT FALSE)
++  set(REASON "VTK was not found.")
+ else()
+-    set(DEFAULT TRUE)
+-    set(REASON)
+-    include(${VTK_USE_FILE})
++  set(DEFAULT TRUE)
++  set(REASON)
+ endif()
+ 
+ PCL_ADD_EXAMPLE(pcl_example_sift_keypoint_estimation FILES example_sift_keypoint_estimation.cpp
+diff --git a/examples/outofcore/CMakeLists.txt b/examples/outofcore/CMakeLists.txt
+index aed932e9b5..6c624f0e9f 100644
+--- a/examples/outofcore/CMakeLists.txt
++++ b/examples/outofcore/CMakeLists.txt
+@@ -9,7 +9,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  include(${VTK_USE_FILE})
+ endif()
+ 
+ PCL_SUBSYS_DEPEND (build ${SUBSYS_NAME} DEPS outofcore io common octree filters visualization EXT_DEPS vtk)
+diff --git a/examples/segmentation/CMakeLists.txt b/examples/segmentation/CMakeLists.txt
+index 5e672fd821..b788c4c6fa 100644
+--- a/examples/segmentation/CMakeLists.txt
++++ b/examples/segmentation/CMakeLists.txt
+@@ -11,7 +11,6 @@ PCL_ADD_EXAMPLE(pcl_example_region_growing FILES example_region_growing.cpp
+ 
+ ## Find VTK
+ if(VTK_FOUND)
+-  include(${VTK_USE_FILE})
+   PCL_ADD_EXAMPLE(pcl_example_supervoxels FILES example_supervoxels.cpp
+                   LINK_WITH pcl_common pcl_features pcl_segmentation pcl_octree pcl_kdtree pcl_visualization)
+   PCL_ADD_EXAMPLE(pcl_example_lccp_segmentation FILES example_lccp_segmentation.cpp
+diff --git a/examples/stereo/CMakeLists.txt b/examples/stereo/CMakeLists.txt
+index 518d104942..1f64b1cf09 100644
+--- a/examples/stereo/CMakeLists.txt
++++ b/examples/stereo/CMakeLists.txt
+@@ -11,7 +11,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  include(${VTK_USE_FILE})
+ endif()
+ 
+ PCL_ADD_EXAMPLE(pcl_example_stereo_baseline FILES example_stereo_baseline.cpp
+diff --git a/examples/surface/CMakeLists.txt b/examples/surface/CMakeLists.txt
+index ec9f030d61..0cc5d7d277 100644
+--- a/examples/surface/CMakeLists.txt
++++ b/examples/surface/CMakeLists.txt
+@@ -11,7 +11,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  include(${VTK_USE_FILE})
+ endif()
+ 
+ PCL_ADD_EXAMPLE(pcl_test_nurbs_fitting_surface
+
+From de0d2c04e4356a13b1fc86a36cea0eb3e964e0ec Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Sun, 8 Nov 2020 20:55:58 +0100
+Subject: [PATCH 13/15] Fix apps.
+
+---
+ apps/3d_rec_framework/CMakeLists.txt          |   1 -
+ .../utils/vtk_model_sampling.h                |   8 +-
+ apps/CMakeLists.txt                           |  48 ++--
+ apps/cloud_composer/CMakeLists.txt            |  14 +-
+ .../pcl/apps/cloud_composer/cloud_view.h      |  16 +-
+ .../apps/cloud_composer/items/cloud_item.h    |   9 +-
+ .../pcl/apps/cloud_composer/items/fpfh_item.h |   5 +-
+ .../click_trackball_interactor_style.h        |   2 +
+ .../point_selectors/interactor_style_switch.h |   9 +-
+ .../point_selectors/manipulation_event.h      |   1 -
+ .../rectangular_frustum_selector.h            |   4 +
+ .../selected_trackball_interactor_style.h     |   4 +
+ .../point_selectors/selection_event.h         |   7 +-
+ apps/cloud_composer/src/cloud_view.cpp        |  71 ++++--
+ apps/cloud_composer/src/items/fpfh_item.cpp   |  15 +-
+ .../click_trackball_interactor_style.cpp      |   4 +
+ .../interactor_style_switch.cpp               |   3 +
+ .../rectangular_frustum_selector.cpp          |   8 +
+ .../selected_trackball_interactor_style.cpp   |   9 +
+ apps/cloud_composer/src/project_model.cpp     |   5 +
+ apps/include/pcl/apps/manual_registration.h   |   3 +
+ apps/include/pcl/apps/openni_passthrough.h    |   3 +
+ .../pcl/apps/organized_segmentation_demo.h    |   4 +
+ apps/include/pcl/apps/pcd_video_player.h      |   4 +-
+ apps/modeler/CMakeLists.txt                   |  12 +-
+ .../include/pcl/apps/modeler/render_window.h  |   5 +-
+ apps/modeler/src/cloud_mesh.cpp               |   4 +-
+ apps/modeler/src/cloud_mesh_item.cpp          |  15 +-
+ apps/modeler/src/render_window.cpp            |  35 +--
+ .../manual_registration.cpp                   |  53 +++-
+ .../manual_registration.ui                    |  10 +-
+ apps/src/openni_octree_compression.cpp        |   2 +-
+ apps/src/openni_passthrough.cpp               |  34 ++-
+ apps/src/openni_passthrough.ui                |   8 +-
+ apps/src/organized_segmentation_demo.cpp      |  33 ++-
+ apps/src/organized_segmentation_demo.ui       |   8 +-
+ .../src/pcd_video_player/pcd_video_player.cpp |  37 ++-
+ apps/src/pcd_video_player/pcd_video_player.ui | 226 ++++++++----------
+ apps/src/render_views_tesselated_sphere.cpp   |  11 +-
+ 39 files changed, 484 insertions(+), 266 deletions(-)
+
+diff --git a/apps/3d_rec_framework/CMakeLists.txt b/apps/3d_rec_framework/CMakeLists.txt
+index ec6c56d8fa..6b64e28c9c 100644
+--- a/apps/3d_rec_framework/CMakeLists.txt
++++ b/apps/3d_rec_framework/CMakeLists.txt
+@@ -9,7 +9,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  include("${VTK_USE_FILE}")
+ endif()
+ 
+ # OpenNI found?
+diff --git a/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/utils/vtk_model_sampling.h b/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/utils/vtk_model_sampling.h
+index 947809fdb4..5f55fcbd9f 100644
+--- a/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/utils/vtk_model_sampling.h
++++ b/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/utils/vtk_model_sampling.h
+@@ -7,6 +7,8 @@
+ 
+ #pragma once
+ 
++#include <pcl/visualization/vtk/pcl_vtk_compatibility.h>
++
+ #include <pcl/common/common.h>
+ 
+ #include <vtkCellArray.h>
+@@ -74,7 +76,7 @@ randPSurface(vtkPolyData* polydata,
+ 
+   double A[3], B[3], C[3];
+   vtkIdType npts = 0;
+-  vtkIdType* ptIds = nullptr;
++  vtkCellPtsPtr ptIds = nullptr;
+   polydata->GetCellPoints(el, npts, ptIds);
+ 
+   if (ptIds == nullptr)
+@@ -98,7 +100,9 @@ uniform_sampling(const vtkSmartPointer<vtkPolyData>& polydata,
+   double p1[3], p2[3], p3[3], totalArea = 0;
+   std::vector<double> cumulativeAreas(cells->GetNumberOfCells(), 0);
+   std::size_t i = 0;
+-  vtkIdType npts = 0, *ptIds = nullptr;
++  vtkIdType npts = 0;
++  vtkCellPtsPtr ptIds = nullptr;
++
+   for (cells->InitTraversal(); cells->GetNextCell(npts, ptIds); i++) {
+     polydata->GetPoint(ptIds[0], p1);
+     polydata->GetPoint(ptIds[1], p2);
+diff --git a/apps/CMakeLists.txt b/apps/CMakeLists.txt
+index 853dac2d8e..bd252740ae 100644
+--- a/apps/CMakeLists.txt
++++ b/apps/CMakeLists.txt
+@@ -34,8 +34,6 @@ if(LIBUSB_1_FOUND)
+ endif()
+ 
+ if(VTK_FOUND)
+-  include("${VTK_USE_FILE}")
+-
+   set(incs "include/pcl/${SUBSYS_NAME}/render_views_tesselated_sphere.h")
+   set(srcs "src/render_views_tesselated_sphere.cpp")
+ 
+@@ -60,6 +58,10 @@ if(VTK_FOUND)
+   if(QHULL_FOUND)
+     PCL_ADD_EXECUTABLE(pcl_pcd_select_object_plane COMPONENT ${SUBSYS_NAME} SOURCES src/pcd_select_object_plane.cpp)
+     target_link_libraries(pcl_pcd_select_object_plane pcl_common pcl_io pcl_filters pcl_visualization pcl_segmentation pcl_features pcl_surface)
++    #TODO: Update when CMAKE 3.10 is available
++    if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++      target_link_libraries(pcl_pcd_select_object_plane VTK::FiltersGeometry)
++    endif()
+   endif()
+ 
+   PCL_ADD_EXECUTABLE(pcl_pcd_organized_edge_detection COMPONENT ${SUBSYS_NAME} SOURCES src/pcd_organized_edge_detection.cpp)
+@@ -74,17 +76,25 @@ if(VTK_FOUND)
+   PCL_ADD_EXECUTABLE(pcl_stereo_ground_segmentation COMPONENT ${SUBSYS_NAME} SOURCES src/stereo_ground_segmentation.cpp)
+   target_link_libraries(pcl_stereo_ground_segmentation pcl_common pcl_io pcl_filters pcl_visualization pcl_segmentation pcl_features pcl_stereo)
+ 
+-  if(Qt5_FOUND AND QVTK_FOUND)
++  if(Qt5_FOUND AND HAVE_QVTK)
+     # Manual registration demo
+     QT5_WRAP_UI(manual_registration_ui src/manual_registration/manual_registration.ui)
+     QT5_WRAP_CPP(manual_registration_moc include/pcl/apps/manual_registration.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
+     PCL_ADD_EXECUTABLE(pcl_manual_registration COMPONENT ${SUBSYS_NAME} SOURCES ${manual_registration_ui} ${manual_registration_moc} src/manual_registration/manual_registration.cpp BUNDLE)
+     target_link_libraries(pcl_manual_registration pcl_common pcl_io pcl_visualization pcl_segmentation pcl_features pcl_surface Qt5::Widgets)
++    #TODO: Update when CMAKE 3.10 is available
++    if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++      target_link_libraries(pcl_manual_registration VTK::GUISupportQt)
++    endif()
+ 
+     QT5_WRAP_UI(pcd_video_player_ui src/pcd_video_player/pcd_video_player.ui)
+     QT5_WRAP_CPP(pcd_video_player_moc include/pcl/apps/pcd_video_player.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
+     PCL_ADD_EXECUTABLE(pcl_pcd_video_player COMPONENT ${SUBSYS_NAME} SOURCES ${pcd_video_player_ui} ${pcd_video_player_moc} src/pcd_video_player/pcd_video_player.cpp BUNDLE)
+     target_link_libraries(pcl_pcd_video_player pcl_common pcl_io pcl_visualization pcl_segmentation pcl_features pcl_surface Qt5::Widgets)
++    #TODO: Update when CMAKE 3.10 is available
++    if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++      target_link_libraries(pcl_pcd_video_player VTK::GUISupportQt)
++    endif()
+   endif()
+ 
+   if(WITH_OPENNI)
+@@ -138,18 +148,26 @@ if(VTK_FOUND)
+     PCL_ADD_EXECUTABLE(pcl_openni_face_detector COMPONENT ${SUBSYS_NAME} SOURCES src/face_detection//openni_face_detection.cpp src/face_detection//openni_frame_source.cpp BUNDLE)
+     target_link_libraries(pcl_openni_face_detector pcl_features pcl_recognition pcl_common pcl_io pcl_filters pcl_visualization pcl_segmentation pcl_sample_consensus pcl_surface pcl_keypoints pcl_ml pcl_search pcl_kdtree ${VTK_LIBRARIES})
+ 
+-    if(Qt5_FOUND AND QVTK_FOUND)
+-    # OpenNI Passthrough application demo
+-    QT5_WRAP_UI(openni_passthrough_ui src/openni_passthrough.ui)
+-    QT5_WRAP_CPP(openni_passthrough_moc include/pcl/apps/openni_passthrough.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
+-    PCL_ADD_EXECUTABLE(pcl_openni_passthrough COMPONENT ${SUBSYS_NAME} SOURCES ${openni_passthrough_ui} ${openni_passthrough_moc} src/openni_passthrough.cpp)
+-    target_link_libraries(pcl_openni_passthrough pcl_common pcl_io pcl_filters pcl_visualization Qt5::Widgets)
+-
+-    # OpenNI Organized Connected Component application demo
+-    QT5_WRAP_UI(organized_segmentation_demo_ui src/organized_segmentation_demo.ui)
+-    QT5_WRAP_CPP(organized_segmentation_demo_moc include/pcl/apps/organized_segmentation_demo.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
+-    PCL_ADD_EXECUTABLE(pcl_organized_segmentation_demo COMPONENT ${SUBSYS_NAME} SOURCES ${organized_segmentation_demo_ui} ${organized_segmentation_demo_moc} src/organized_segmentation_demo.cpp BUNDLE)
+-    target_link_libraries(pcl_organized_segmentation_demo pcl_common pcl_io pcl_visualization pcl_segmentation pcl_features pcl_surface Qt5::Widgets)
++    if(Qt5_FOUND AND HAVE_QVTK)
++      # OpenNI Passthrough application demo
++      QT5_WRAP_UI(openni_passthrough_ui src/openni_passthrough.ui)
++      QT5_WRAP_CPP(openni_passthrough_moc include/pcl/apps/openni_passthrough.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
++      PCL_ADD_EXECUTABLE(pcl_openni_passthrough COMPONENT ${SUBSYS_NAME} SOURCES ${openni_passthrough_ui} ${openni_passthrough_moc} src/openni_passthrough.cpp)
++      target_link_libraries(pcl_openni_passthrough pcl_common pcl_io pcl_filters pcl_visualization Qt5::Widgets)
++      #TODO: Update when CMAKE 3.10 is available
++      if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++        target_link_libraries(pcl_openni_passthrough VTK::GUISupportQt)
++      endif()
++
++      # OpenNI Organized Connected Component application demo
++      QT5_WRAP_UI(organized_segmentation_demo_ui src/organized_segmentation_demo.ui)
++      QT5_WRAP_CPP(organized_segmentation_demo_moc include/pcl/apps/organized_segmentation_demo.h OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
++      PCL_ADD_EXECUTABLE(pcl_organized_segmentation_demo COMPONENT ${SUBSYS_NAME} SOURCES ${organized_segmentation_demo_ui} ${organized_segmentation_demo_moc} src/organized_segmentation_demo.cpp BUNDLE)
++      target_link_libraries(pcl_organized_segmentation_demo pcl_common pcl_io pcl_visualization pcl_segmentation pcl_features pcl_surface Qt5::Widgets)
++      #TODO: Update when CMAKE 3.10 is available
++      if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++        target_link_libraries(pcl_organized_segmentation_demo VTK::GUISupportQt)
++      endif()      
+     endif()
+ 
+     if(QHULL_FOUND)
+diff --git a/apps/cloud_composer/CMakeLists.txt b/apps/cloud_composer/CMakeLists.txt
+index d70e4bb543..80a9a27a3d 100644
+--- a/apps/cloud_composer/CMakeLists.txt
++++ b/apps/cloud_composer/CMakeLists.txt
+@@ -14,7 +14,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  include("${VTK_USE_FILE}")
+ endif()
+ 
+ # QT5 Found?
+@@ -27,7 +26,7 @@ elseif(NOT ${DEFAULT} STREQUAL "AUTO_OFF")
+ endif()
+ 
+ # QVTK?
+-if(NOT QVTK_FOUND)
++if(NOT HAVE_QVTK)
+   set(DEFAULT AUTO_OFF)
+   set(REASON "Cloud composer requires QVTK")
+ elseif(NOT ${DEFAULT} STREQUAL "AUTO_OFF")
+@@ -41,7 +40,7 @@ if("${DEFAULT}" STREQUAL "TRUE")
+ endif()
+ 
+ PCL_SUBSUBSYS_OPTION(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" "${SUBSUBSYS_DESC}" ${DEFAULT} "${REASON}")
+-PCL_SUBSUBSYS_DEPEND(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" DEPS ${SUBSUBSYS_DEPS})
++PCL_SUBSUBSYS_DEPEND(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" DEPS ${SUBSUBSYS_DEPS} EXT_DEPS vtk)
+ 
+ PCL_ADD_DOC(${SUBSUBSYS_NAME})
+ 
+@@ -92,7 +91,14 @@ set(PCL_LIB_TYPE_ORIGIN ${PCL_LIB_TYPE})
+ set(PCL_LIB_TYPE STATIC)
+ QT5_WRAP_CPP(INTERFACE_HEADERS_MOC ${INTERFACE_HEADERS} OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION)
+ PCL_ADD_LIBRARY(pcl_cc_tool_interface COMPONENT ${SUBSUBSYS_NAME} SOURCES ${INTERFACE_HEADERS} ${INTERFACE_SOURCES} ${INTERFACE_HEADERS_MOC})
+-target_link_libraries(pcl_cc_tool_interface pcl_common pcl_filters pcl_search pcl_visualization ${VTK_LIBRARIES} Qt5::Widgets)
++
++set(vtk_libs ${VTK_LIBRARIES})
++#TODO: Update when CMAKE 3.10 is available
++if (NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  set(vtk_libs VTK::GUISupportQt)
++endif()
++target_link_libraries(pcl_cc_tool_interface pcl_common pcl_filters pcl_search pcl_visualization Qt5::Widgets ${vtk_libs})
++
+ set(PCL_LIB_TYPE ${PCL_LIB_TYPE_ORIGIN})
+ 
+ if(APPLE)
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/cloud_view.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/cloud_view.h
+index 19c91ca767..27780fa5eb 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/cloud_view.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/cloud_view.h
+@@ -42,8 +42,15 @@
+ #include <vtkEventQtSlotConnect.h>
+ 
+ #include <pcl/visualization/pcl_visualizer.h>
++#include <pcl/visualization/qvtk_compatibility.h>
+ #include <pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h>
+ 
++
++#include <vtkSmartPointer.h>
++#include <vtkOrientationMarkerWidget.h>
++#include <vtkAxesActor.h>
++#include <vtkVersion.h>
++
+ class QItemSelection;
+ class QStandardItem;
+ 
+@@ -67,11 +74,12 @@ namespace pcl
+       
+       void 
+       setModel (ProjectModel* new_model);
++      
+       ProjectModel* 
+       getModel () const { return model_; }
+       
+-      QVTKWidget* 
+-      getQVTK() const {return qvtk_; }
++      PCLQVTKWidget*
++      getQVTK() const { return qvtk_; }
+       
+       pcl::visualization::PCLVisualizer::Ptr
+       getPCLVisualizer () const { return vis_; }
+@@ -141,7 +149,9 @@ namespace pcl
+       
+       pcl::visualization::PCLVisualizer::Ptr vis_;
+       ProjectModel* model_;
+-      QVTKWidget* qvtk_;
++
++      PCLQVTKWidget* qvtk_;
++
+       vtkSmartPointer<InteractorStyleSwitch> style_switch_;
+       
+       vtkSmartPointer<vtkOrientationMarkerWidget> axes_widget_;
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/items/cloud_item.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/items/cloud_item.h
+index debc9a32c6..a54f7fb2bd 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/items/cloud_item.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/items/cloud_item.h
+@@ -40,10 +40,17 @@
+ #include <QDebug>
+ 
+ #include <pcl/apps/cloud_composer/items/cloud_composer_item.h>
++
++#include <pcl/point_types.h>
++#include <pcl/point_cloud.h>
++#include <pcl/PCLPointCloud2.h>
+ #include <pcl/memory.h>
+ #include <pcl/pcl_macros.h>
+-#include <pcl/visualization/pcl_visualizer.h>
+ #include <pcl/search/kdtree.h>
++#include <pcl/visualization/point_cloud_geometry_handlers.h>
++#include <pcl/visualization/point_cloud_color_handlers.h>
++#include <pcl/visualization/pcl_visualizer.h>
++
+ 
+ //Typedefs to make things sane
+ using GeometryHandler = pcl::visualization::PointCloudGeometryHandler<pcl::PCLPointCloud2>;
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/items/fpfh_item.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/items/fpfh_item.h
+index 42feb56376..5f3ac4524e 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/items/fpfh_item.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/items/fpfh_item.h
+@@ -41,10 +41,9 @@
+ #include <pcl/features/fpfh.h>
+ 
+ #include <pcl/apps/cloud_composer/items/cloud_composer_item.h>
++#include <pcl/visualization/qvtk_compatibility.h>
+ #include <pcl/visualization/pcl_plotter.h>
+ 
+-class QVTKWidget;
+-
+ namespace pcl
+ {
+   namespace cloud_composer
+@@ -74,7 +73,7 @@ namespace pcl
+         pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_ptr_;
+         double radius_;
+         pcl::visualization::PCLPlotter::Ptr plot_;
+-        QVTKWidget *qvtk_;
++        PCLQVTKWidget* qvtk_;
+         QWidget *hist_page_;
+     };
+ 
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/click_trackball_interactor_style.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/click_trackball_interactor_style.h
+index cc7b90167c..ecc1a390cc 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/click_trackball_interactor_style.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/click_trackball_interactor_style.h
+@@ -39,6 +39,8 @@
+ 
+ #include <pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h>
+ 
++#include <vtkInteractorStyleTrackballActor.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h
+index d039aa4230..1dd72c1d30 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h
+@@ -39,12 +39,19 @@
+ 
+ #include <QMap>
+ 
+-#include <pcl/visualization/vtk.h>
+ #include <pcl/visualization/interactor_style.h>
+ #include <pcl/visualization/common/actor_map.h>
+ #include <pcl/visualization/common/ren_win_interact_map.h>
+ #include <pcl/visualization/pcl_visualizer.h>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkAreaPicker.h>
++#include <vtkPointPicker.h>
++#include <vtkRenderWindowInteractor.h>
++#include <vtkCommand.h>
++#include <vtkRendererCollection.h>
++#include <vtkInteractorStyle.h>
++
+ class QVTKWidget;
+ 
+ namespace pcl
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/manipulation_event.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/manipulation_event.h
+index 5e31ff5b46..49ef9008e4 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/manipulation_event.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/manipulation_event.h
+@@ -37,7 +37,6 @@
+ 
+ #pragma once
+ 
+-#include <pcl/visualization/vtk.h>
+ #include <pcl/apps/cloud_composer/items/cloud_item.h>
+ 
+ namespace pcl
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/rectangular_frustum_selector.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/rectangular_frustum_selector.h
+index bc6f7dcc90..a89982b9aa 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/rectangular_frustum_selector.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/rectangular_frustum_selector.h
+@@ -39,6 +39,10 @@
+ 
+ #include <pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkRendererCollection.h>
++#include <vtkInteractorStyleRubberBandPick.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selected_trackball_interactor_style.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selected_trackball_interactor_style.h
+index 58fc208c2c..cd4352acd6 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selected_trackball_interactor_style.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selected_trackball_interactor_style.h
+@@ -37,6 +37,10 @@
+ 
+ #include <pcl/apps/cloud_composer/point_selectors/interactor_style_switch.h>
+ 
++#include <vtkInteractorStyleTrackballActor.h>
++#include <vtkSmartPointer.h>
++#include <vtkMatrix4x4.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selection_event.h b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selection_event.h
+index 0e8dfa4960..0e40fcb5e2 100644
+--- a/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selection_event.h
++++ b/apps/cloud_composer/include/pcl/apps/cloud_composer/point_selectors/selection_event.h
+@@ -37,9 +37,14 @@
+ 
+ #pragma once
+ 
+-#include <pcl/visualization/vtk.h>
+ #include <pcl/apps/cloud_composer/items/cloud_item.h>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkPolyData.h>
++#include <vtkActor.h>
++#include <vtkDataSetMapper.h>
++#include <vtkRenderer.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/src/cloud_view.cpp b/apps/cloud_composer/src/cloud_view.cpp
+index 3ac9bf7cd3..465c557a07 100644
+--- a/apps/cloud_composer/src/cloud_view.cpp
++++ b/apps/cloud_composer/src/cloud_view.cpp
+@@ -5,20 +5,29 @@
+ #include <pcl/apps/cloud_composer/point_selectors/selection_event.h>
+ #include <pcl/apps/cloud_composer/point_selectors/manipulation_event.h>
+ 
++#include <vtkGenericOpenGLRenderWindow.h>
++
+ #include <QDebug>
+ 
+-#include <QVTKWidget.h>
+ 
+ pcl::cloud_composer::CloudView::CloudView (QWidget* parent)
+   : QWidget (parent)
+ {
+-  vis_.reset (new pcl::visualization::PCLVisualizer ("", false));
+-  vis_->getInteractorStyle ()->setKeyboardModifier (pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++  qvtk_ = new PCLQVTKWidget(this);
+   //Create the QVTKWidget
+-  qvtk_ = new QVTKWidget (this);
+-  qvtk_->SetRenderWindow (vis_->getRenderWindow ());
++#if VTK_MAJOR_VERSION > 8
++  auto renderer = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow->AddRenderer(renderer);
++  vis_.reset(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
++#else
++  vis_.reset(new pcl::visualization::PCLVisualizer("", false));
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*qvtk_, *(vis_->getRenderWindow()));
++  vis_->setupInteractor(getInteractorCompat(*qvtk_), getRenderWindowCompat(*qvtk_), style_switch_);
++  vis_->getInteractorStyle()->setKeyboardModifier(pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++  
+   initializeInteractorSwitch ();
+-  vis_->setupInteractor (qvtk_->GetInteractor (), qvtk_->GetRenderWindow (), style_switch_);
+   
+   QGridLayout *mainLayout = new QGridLayout (this);
+   mainLayout-> addWidget (qvtk_,0,0);
+@@ -28,13 +37,22 @@ pcl::cloud_composer::CloudView::CloudView (ProjectModel* model, QWidget* parent)
+   : QWidget (parent)
+ {
+   model_ = model;
+-  vis_.reset (new pcl::visualization::PCLVisualizer ("", false));
+- // vis_->getInteractorStyle ()->setKeyboardModifier (pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++  
++  qvtk_ = new PCLQVTKWidget(this);
+   //Create the QVTKWidget
+-  qvtk_ = new QVTKWidget (this);
+-  qvtk_->SetRenderWindow (vis_->getRenderWindow ());
++#if VTK_MAJOR_VERSION > 8
++  auto renderer = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow->AddRenderer(renderer);
++  vis_.reset(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
++#else
++  vis_.reset(new pcl::visualization::PCLVisualizer("", false));
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*qvtk_, *(vis_->getRenderWindow()));
++  vis_->setupInteractor(getInteractorCompat(*qvtk_), getRenderWindowCompat(*qvtk_), style_switch_);
++  //vis_->getInteractorStyle()->setKeyboardModifier(pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++
+   initializeInteractorSwitch ();
+-  vis_->setupInteractor (qvtk_->GetInteractor (), qvtk_->GetRenderWindow (), style_switch_);
+   setModel(model);
+   
+   QGridLayout *mainLayout = new QGridLayout (this);
+@@ -57,9 +75,9 @@ pcl::cloud_composer::CloudView::setModel (ProjectModel* new_model)
+   connectSignalsAndSlots();
+   //Refresh the view
+   qvtk_->show();
+-  qvtk_->update ();
++  refresh();
+   
+- // vis_->addOrientationMarkerWidgetAxes (qvtk_->GetInteractor ());
++ // vis_->addOrientationMarkerWidgetAxes (getInteractorCompat(qvtk_));
+ }
+ 
+ void
+@@ -76,7 +94,11 @@ pcl::cloud_composer::CloudView::connectSignalsAndSlots()
+ void
+ pcl::cloud_composer::CloudView::refresh ()
+ {
++#if VTK_MAJOR_VERSION > 8
++  qvtk_->renderWindow()->Render();
++#else
+   qvtk_->update (); 
++#endif // VTK_MAJOR_VERSION > 8
+ }
+ 
+ void
+@@ -88,7 +110,7 @@ pcl::cloud_composer::CloudView::itemChanged (QStandardItem* changed_item)
+   {
+     item->paintView (vis_);
+   }
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ 
+@@ -115,8 +137,7 @@ pcl::cloud_composer::CloudView::rowsInserted (const QModelIndex& parent, int sta
+       rowsInserted(new_item->index(),0,new_item->rowCount ()-1);
+   }
+   
+-  qvtk_->update ();
+-
++  refresh();
+ }
+ 
+ void
+@@ -143,20 +164,20 @@ pcl::cloud_composer::CloudView::rowsAboutToBeRemoved (const QModelIndex& parent,
+     if (item_to_remove->rowCount () > 0) 
+       rowsAboutToBeRemoved(item_to_remove->index(),0,item_to_remove->rowCount ()-1);
+   }
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ 
+ void 
+ pcl::cloud_composer::CloudView::paintEvent (QPaintEvent*)
+ {
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ void 
+ pcl::cloud_composer::CloudView::resizeEvent (QResizeEvent*)
+ {
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ void
+@@ -186,7 +207,7 @@ pcl::cloud_composer::CloudView::selectedItemChanged (const QItemSelection & sele
+       }
+     }
+   }
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ void
+@@ -204,14 +225,14 @@ pcl::cloud_composer::CloudView::setAxisVisibility (bool visible)
+   if (visible)
+   {
+     qDebug () << "Adding coordinate system!";
+-    vis_->addOrientationMarkerWidgetAxes ( qvtk_->GetInteractor() );
++    vis_->addOrientationMarkerWidgetAxes(getInteractorCompat(*qvtk_));
+   }
+   else
+   {
+     vis_->removeOrientationMarkerWidgetAxes ();
+   }
+ 
+-  qvtk_->update ();
++  refresh();
+ }
+ 
+ void
+@@ -224,7 +245,7 @@ pcl::cloud_composer::CloudView::addOrientationMarkerWidgetAxes ()
+     axes_widget_ = vtkSmartPointer<vtkOrientationMarkerWidget>::New ();
+     axes_widget_->SetOutlineColor ( 0.9300, 0.5700, 0.1300 );
+     axes_widget_->SetOrientationMarker( axes );
+-    axes_widget_->SetInteractor( qvtk_->GetInteractor () );
++    axes_widget_->SetInteractor(getInteractorCompat(*qvtk_));
+     axes_widget_->SetViewport( 0.0, 0.0, 0.4, 0.4 );
+     axes_widget_->SetEnabled( 1 );
+     axes_widget_->InteractiveOn();
+@@ -244,8 +265,6 @@ pcl::cloud_composer::CloudView::removeOrientationMarkerWidgetAxes ()
+   {
+     axes_widget_->SetEnabled (false);
+   }
+-  
+-  
+ }
+ 
+ ////////  Interactor Functions
+@@ -255,7 +274,7 @@ pcl::cloud_composer::CloudView::initializeInteractorSwitch ()
+ {
+   style_switch_ = vtkSmartPointer<InteractorStyleSwitch>::New();
+   style_switch_->initializeInteractorStyles (vis_, model_);
+-  style_switch_->SetInteractor (qvtk_->GetInteractor ());
++  style_switch_->SetInteractor(getInteractorCompat(*qvtk_));
+   style_switch_->setCurrentInteractorStyle (interactor_styles::PCL_VISUALIZER);
+   
+   //Connect the events!
+diff --git a/apps/cloud_composer/src/items/fpfh_item.cpp b/apps/cloud_composer/src/items/fpfh_item.cpp
+index 4ee8178360..f48b562333 100644
+--- a/apps/cloud_composer/src/items/fpfh_item.cpp
++++ b/apps/cloud_composer/src/items/fpfh_item.cpp
+@@ -3,8 +3,6 @@
+ 
+ #include <QGridLayout>
+ 
+-#include <QVTKWidget.h>
+-
+ pcl::cloud_composer::FPFHItem::FPFHItem (QString name, const pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfh_ptr, double radius)
+   : CloudComposerItem (std::move(name))
+   , fpfh_ptr_ (fpfh_ptr)
+@@ -40,7 +38,7 @@ pcl::cloud_composer::FPFHItem::getInspectorTabs ()
+   if (!plot_)
+   {
+     plot_.reset (new pcl::visualization::PCLPlotter);
+-    qvtk_ = new QVTKWidget ();
++    qvtk_ = new PCLQVTKWidget();
+     hist_page_ = new QWidget ();
+     QGridLayout *mainLayout = new QGridLayout (hist_page_);
+     mainLayout-> addWidget (qvtk_,0,0);
+@@ -49,10 +47,15 @@ pcl::cloud_composer::FPFHItem::getInspectorTabs ()
+   //Plot the histogram
+   plot_->addFeatureHistogram (*fpfh_ptr_, fpfh_ptr_->width, data(ItemDataRole::ITEM_ID).toString().toStdString ());
+   //Set the render window of the QVTK widget, update
+-  plot_->setViewInteractor (vtkSmartPointer<vtkRenderWindowInteractor> (qvtk_->GetInteractor ()));
+-  qvtk_->SetRenderWindow (plot_->getRenderWindow ());
++  plot_->setViewInteractor(getInteractorCompat(*qvtk_));
++  setRenderWindowCompat(*qvtk_, *(plot_->getRenderWindow()));
++#if VTK_MAJOR_VERSION > 8
++  qvtk_->renderWindow()->Render();
++#else
++  qvtk_->update();
++#endif // VTK_MAJOR_VERSION > 8
+   qvtk_->show ();
+-  qvtk_->update ();
++  
+   
+   QMap <QString, QWidget*> tabs;
+   tabs.insert ("Histogram",hist_page_);
+diff --git a/apps/cloud_composer/src/point_selectors/click_trackball_interactor_style.cpp b/apps/cloud_composer/src/point_selectors/click_trackball_interactor_style.cpp
+index e316c55f87..c21b212592 100644
+--- a/apps/cloud_composer/src/point_selectors/click_trackball_interactor_style.cpp
++++ b/apps/cloud_composer/src/point_selectors/click_trackball_interactor_style.cpp
+@@ -4,6 +4,10 @@
+ 
+ #include <QDebug>
+ 
++
++#include <vtkObjectFactory.h> // For vtkStandardNewMacro
++#include <vtkTransform.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/src/point_selectors/interactor_style_switch.cpp b/apps/cloud_composer/src/point_selectors/interactor_style_switch.cpp
+index b1f3f59761..72fbf7f624 100644
+--- a/apps/cloud_composer/src/point_selectors/interactor_style_switch.cpp
++++ b/apps/cloud_composer/src/point_selectors/interactor_style_switch.cpp
+@@ -6,6 +6,9 @@
+ 
+ #include <QDebug>
+ 
++#include <vtkCallbackCommand.h>
++#include <vtkObjectFactory.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/src/point_selectors/rectangular_frustum_selector.cpp b/apps/cloud_composer/src/point_selectors/rectangular_frustum_selector.cpp
+index c237692c5f..0bd7114cdf 100644
+--- a/apps/cloud_composer/src/point_selectors/rectangular_frustum_selector.cpp
++++ b/apps/cloud_composer/src/point_selectors/rectangular_frustum_selector.cpp
+@@ -3,6 +3,14 @@
+ 
+ #include <QDebug>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkIdFilter.h>
++#include <vtkExtractGeometry.h>
++#include <vtkVertexGlyphFilter.h>
++#include <vtkPlanes.h>
++#include <vtkAreaPicker.h>
++#include <vtkObjectFactory.h>
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/src/point_selectors/selected_trackball_interactor_style.cpp b/apps/cloud_composer/src/point_selectors/selected_trackball_interactor_style.cpp
+index dc145333b0..9ad0f579ec 100644
+--- a/apps/cloud_composer/src/point_selectors/selected_trackball_interactor_style.cpp
++++ b/apps/cloud_composer/src/point_selectors/selected_trackball_interactor_style.cpp
+@@ -4,6 +4,15 @@
+ #include <QDebug>
+ #include <QItemSelectionModel>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkMatrix4x4.h>
++#include <vtkLODActor.h>
++#include <vtkInteractorStyleTrackballActor.h>
++#include <vtkRenderWindowInteractor.h>
++#include <vtkTransform.h>
++#include <vtkObjectFactory.h>
++
++
+ namespace pcl
+ {
+   namespace cloud_composer
+diff --git a/apps/cloud_composer/src/project_model.cpp b/apps/cloud_composer/src/project_model.cpp
+index 0f1575bd0d..5be855c478 100644
+--- a/apps/cloud_composer/src/project_model.cpp
++++ b/apps/cloud_composer/src/project_model.cpp
+@@ -14,6 +14,11 @@
+ #include <QMessageBox>
+ #include <QThread>
+ 
++#include <vtkSmartPointer.h>
++#include <vtkImageData.h>
++#include <vtkImageReader2Factory.h>
++#include <vtkImageReader2.h>
++
+ pcl::cloud_composer::ProjectModel::ProjectModel (QObject* parent)
+   : QStandardItemModel (parent)
+ {
+diff --git a/apps/include/pcl/apps/manual_registration.h b/apps/include/pcl/apps/manual_registration.h
+index f4794e899c..e0858a8431 100644
+--- a/apps/include/pcl/apps/manual_registration.h
++++ b/apps/include/pcl/apps/manual_registration.h
+@@ -100,6 +100,9 @@ class ManualRegistration : public QMainWindow {
+   DstPointPickCallback(const pcl::visualization::PointPickingEvent& event, void*);
+ 
+ protected:
++  void
++  refreshView();
++
+   pcl::visualization::PCLVisualizer::Ptr vis_src_;
+   pcl::visualization::PCLVisualizer::Ptr vis_dst_;
+ 
+diff --git a/apps/include/pcl/apps/openni_passthrough.h b/apps/include/pcl/apps/openni_passthrough.h
+index d264865b55..cb31575830 100644
+--- a/apps/include/pcl/apps/openni_passthrough.h
++++ b/apps/include/pcl/apps/openni_passthrough.h
+@@ -86,6 +86,9 @@ class OpenNIPassthrough : public QMainWindow {
+   cloud_cb(const CloudConstPtr& cloud);
+ 
+ protected:
++  void
++  refreshView();
++  
+   pcl::visualization::PCLVisualizer::Ptr vis_;
+   pcl::OpenNIGrabber& grabber_;
+   std::string device_id_;
+diff --git a/apps/include/pcl/apps/organized_segmentation_demo.h b/apps/include/pcl/apps/organized_segmentation_demo.h
+index 510b0725cc..b83809cc69 100644
+--- a/apps/include/pcl/apps/organized_segmentation_demo.h
++++ b/apps/include/pcl/apps/organized_segmentation_demo.h
+@@ -184,4 +184,8 @@ public Q_SLOTS:
+ private Q_SLOTS:
+   void
+   timeoutSlot();
++
++private:
++  void
++  refreshView();
+ };
+diff --git a/apps/include/pcl/apps/pcd_video_player.h b/apps/include/pcl/apps/pcd_video_player.h
+index dd80b9e461..2f5e4a197e 100644
+--- a/apps/include/pcl/apps/pcd_video_player.h
++++ b/apps/include/pcl/apps/pcd_video_player.h
+@@ -47,7 +47,6 @@
+ #include <QMainWindow>
+ #include <QMutex>
+ #include <QTimer>
+-#include <ui_pcd_video_player.h>
+ 
+ #include <ctime>
+ #include <iostream>
+@@ -87,6 +86,9 @@ class PCDVideoPlayer : public QMainWindow {
+   ~PCDVideoPlayer() {}
+ 
+ protected:
++  void
++  refreshView();
++
+   pcl::visualization::PCLVisualizer::Ptr vis_;
+   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_;
+ 
+diff --git a/apps/modeler/CMakeLists.txt b/apps/modeler/CMakeLists.txt
+index 7b1d14b580..c7dd1b6a17 100644
+--- a/apps/modeler/CMakeLists.txt
++++ b/apps/modeler/CMakeLists.txt
+@@ -10,8 +10,6 @@ if(NOT VTK_FOUND)
+ else()
+   set(DEFAULT TRUE)
+   set(REASON)
+-  set(VTK_USE_FILE "${VTK_USE_FILE}" CACHE INTERNAL "VTK_USE_FILE")
+-  include("${VTK_USE_FILE}")
+ endif()
+ 
+ # QT5 Found?
+@@ -24,7 +22,7 @@ elseif(NOT ${DEFAULT} STREQUAL "AUTO_OFF")
+ endif()
+ 
+ # QVTK?
+-if(NOT QVTK_FOUND)
++if(NOT HAVE_QVTK)
+   set(DEFAULT AUTO_OFF)
+   set(REASON "VTK was not built with Qt support.")
+ elseif(NOT ${DEFAULT} STREQUAL "AUTO_OFF")
+@@ -37,8 +35,8 @@ if(${DEFAULT} STREQUAL "TRUE")
+   set(DEFAULT FALSE)
+ endif()
+ 
+-PCL_SUBSUBSYS_OPTION(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" "${SUBSYS_DESC}" ${DEFAULT} "${REASON}")
+-PCL_SUBSUBSYS_DEPEND(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" DEPS ${SUBSYS_DEPS} EXT_DEPS vtk)
++PCL_SUBSUBSYS_OPTION(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" "${SUBSUBSYS_DESC}" ${DEFAULT} "${REASON}")
++PCL_SUBSUBSYS_DEPEND(build "${SUBSYS_NAME}" "${SUBSUBSYS_NAME}" DEPS ${SUBSUBSYS_DEPS} EXT_DEPS vtk)
+ 
+ PCL_ADD_DOC("${SUBSUBSYS_NAME}")
+ 
+@@ -140,6 +138,10 @@ set_source_files_properties(${srcs} PROPERTIES OBJECT_DEPENDS "${ui_srcs}")
+ set(EXE_NAME "pcl_${SUBSUBSYS_NAME}")
+ PCL_ADD_EXECUTABLE(${EXE_NAME} COMPONENT ${SUBSUBSYS_NAME} SOURCES ${ui_srcs} ${moc_srcs} ${resource_srcs} ${srcs} ${incs} ${impl_incs})
+ target_link_libraries("${EXE_NAME}" pcl_common pcl_io pcl_kdtree pcl_filters pcl_visualization pcl_segmentation pcl_surface pcl_features pcl_sample_consensus pcl_search Qt5::Widgets)
++#TODO: Update when CMAKE 3.10 is available
++if(NOT (${VTK_VERSION} VERSION_LESS 9.0))
++  target_link_libraries("${EXE_NAME}" VTK::GUISupportQt)
++endif()
+ 
+ # Put the ui in the windows project file
+ if(("${CMAKE_BUILD_TOOL}" MATCHES "msdev") OR("${CMAKE_BUILD_TOOL}" MATCHES "devenv"))
+diff --git a/apps/modeler/include/pcl/apps/modeler/render_window.h b/apps/modeler/include/pcl/apps/modeler/render_window.h
+index b5f07a70be..0413e85b6d 100755
+--- a/apps/modeler/include/pcl/apps/modeler/render_window.h
++++ b/apps/modeler/include/pcl/apps/modeler/render_window.h
+@@ -35,8 +35,7 @@
+  */
+ 
+ #pragma once
+-
+-#include <QVTKWidget.h>
++#include <pcl/visualization/qvtk_compatibility.h>
+ 
+ #include <vtkSmartPointer.h>
+ 
+@@ -47,7 +46,7 @@ namespace modeler {
+ 
+ class RenderWindowItem;
+ 
+-class RenderWindow : public QVTKWidget {
++class RenderWindow : public PCLQVTKWidget {
+ public:
+   RenderWindow(RenderWindowItem* render_window_item,
+                QWidget* parent = nullptr,
+diff --git a/apps/modeler/src/cloud_mesh.cpp b/apps/modeler/src/cloud_mesh.cpp
+index 489aee5c63..0a3e5c4cb0 100755
+--- a/apps/modeler/src/cloud_mesh.cpp
++++ b/apps/modeler/src/cloud_mesh.cpp
+@@ -198,7 +198,7 @@ pcl::modeler::CloudMesh::updateVtkPolygons()
+   if (cloud_->is_dense) {
+     for (const auto& polygon : polygons_) {
+       vtk_polygons_->InsertNextCell(polygon.vertices.size());
+-      for (const unsigned int& vertex : polygon.vertices)
++      for (const auto& vertex : polygon.vertices)
+         vtk_polygons_->InsertCellPoint(vertex);
+     }
+   }
+@@ -208,7 +208,7 @@ pcl::modeler::CloudMesh::updateVtkPolygons()
+ 
+     for (const auto& polygon : polygons_) {
+       vtk_polygons_->InsertNextCell(polygon.vertices.size());
+-      for (const unsigned int& vertex : polygon.vertices)
++      for (const auto& vertex : polygon.vertices)
+         vtk_polygons_->InsertCellPoint((*indices)[vertex]);
+     }
+   }
+diff --git a/apps/modeler/src/cloud_mesh_item.cpp b/apps/modeler/src/cloud_mesh_item.cpp
+index 3090503080..e40ddbf54b 100755
+--- a/apps/modeler/src/cloud_mesh_item.cpp
++++ b/apps/modeler/src/cloud_mesh_item.cpp
+@@ -156,12 +156,13 @@ void
+ pcl::modeler::CloudMeshItem::createChannels()
+ {
+   RenderWindowItem* render_window_item = dynamic_cast<RenderWindowItem*>(parent());
+-  addChild(new PointsActorItem(
+-      this, cloud_mesh_, render_window_item->getRenderWindow()->GetRenderWindow()));
+-  addChild(new NormalsActorItem(
+-      this, cloud_mesh_, render_window_item->getRenderWindow()->GetRenderWindow()));
+-  addChild(new SurfaceActorItem(
+-      this, cloud_mesh_, render_window_item->getRenderWindow()->GetRenderWindow()));
++  vtkRenderWindow* win =
++      getRenderWindowCompat(*(render_window_item->getRenderWindow()));
++
++  addChild(new PointsActorItem(this, cloud_mesh_, win));
++  addChild(new NormalsActorItem(this, cloud_mesh_, win));
++  addChild(new SurfaceActorItem(this, cloud_mesh_, win));
++
+   for (int i = 0, i_end = childCount(); i < i_end; ++i) {
+     ChannelActorItem* child_item = dynamic_cast<ChannelActorItem*>(child(i));
+     child_item->init();
+@@ -242,7 +243,7 @@ pcl::modeler::CloudMeshItem::updateRenderWindow()
+   for (int i = 0, i_end = childCount(); i < i_end; ++i) {
+     ChannelActorItem* child_item = dynamic_cast<ChannelActorItem*>(child(i));
+     child_item->switchRenderWindow(
+-        render_window_item->getRenderWindow()->GetRenderWindow());
++        getRenderWindowCompat(*render_window_item->getRenderWindow()));
+   }
+ 
+   render_window_item->getRenderWindow()->updateAxes();
+diff --git a/apps/modeler/src/render_window.cpp b/apps/modeler/src/render_window.cpp
+index 73c5fd0647..9be04f77ce 100755
+--- a/apps/modeler/src/render_window.cpp
++++ b/apps/modeler/src/render_window.cpp
+@@ -52,7 +52,7 @@
+ pcl::modeler::RenderWindow::RenderWindow(RenderWindowItem* render_window_item,
+                                          QWidget* parent,
+                                          Qt::WindowFlags flags)
+-: QVTKWidget(parent, flags)
++: PCLQVTKWidget(parent, flags)
+ , axes_(vtkSmartPointer<vtkCubeAxesActor>::New())
+ , render_window_item_(render_window_item)
+ {
+@@ -76,7 +76,7 @@ pcl::modeler::RenderWindow::~RenderWindow()
+ void
+ pcl::modeler::RenderWindow::initRenderer()
+ {
+-  vtkSmartPointer<vtkRenderWindow> win = GetRenderWindow();
++  vtkSmartPointer<vtkRenderWindow> win = getRenderWindowCompat(*this);
+   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+   win->AddRenderer(renderer);
+ 
+@@ -105,7 +105,7 @@ pcl::modeler::RenderWindow::focusInEvent(QFocusEvent* event)
+   dynamic_cast<SceneTree*>(render_window_item_->treeWidget())
+       ->selectRenderWindowItem(render_window_item_);
+ 
+-  QVTKWidget::focusInEvent(event);
++  PCLQVTKWidget::focusInEvent(event);
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -130,7 +130,7 @@ pcl::modeler::RenderWindow::setTitle(const QString& title)
+ void
+ pcl::modeler::RenderWindow::render()
+ {
+-  GetRenderWindow()->Render();
++  getRenderWindowCompat(*this)->Render();
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -138,9 +138,11 @@ void
+ pcl::modeler::RenderWindow::resetCamera()
+ {
+   double bounds[6];
+-  GetRenderWindow()->GetRenderers()->GetFirstRenderer()->ComputeVisiblePropBounds(
+-      bounds);
+-  GetRenderWindow()->GetRenderers()->GetFirstRenderer()->ResetCamera(bounds);
++  getRenderWindowCompat(*this)
++      ->GetRenderers()
++      ->GetFirstRenderer()
++      ->ComputeVisiblePropBounds(bounds);
++  getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->ResetCamera(bounds);
+   render();
+ }
+ 
+@@ -148,14 +150,16 @@ pcl::modeler::RenderWindow::resetCamera()
+ void
+ pcl::modeler::RenderWindow::getBackground(double& r, double& g, double& b)
+ {
+-  GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetBackground(r, g, b);
++  getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->GetBackground(
++      r, g, b);
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+ void
+ pcl::modeler::RenderWindow::setBackground(double r, double g, double b)
+ {
+-  GetRenderWindow()->GetRenderers()->GetFirstRenderer()->SetBackground(r, g, b);
++  getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->SetBackground(
++      r, g, b);
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -165,7 +169,7 @@ pcl::modeler::RenderWindow::updateAxes()
+   vtkBoundingBox bb;
+ 
+   vtkActorCollection* actors =
+-      GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActors();
++      getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->GetActors();
+ 
+   actors->InitTraversal();
+   for (int i = 0, i_end = actors->GetNumberOfItems(); i < i_end; ++i) {
+@@ -181,8 +185,10 @@ pcl::modeler::RenderWindow::updateAxes()
+   double bounds[6];
+   bb.GetBounds(bounds);
+   axes_->SetBounds(bounds);
+-  axes_->SetCamera(
+-      GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActiveCamera());
++  axes_->SetCamera(getRenderWindowCompat(*this)
++                       ->GetRenderers()
++                       ->GetFirstRenderer()
++                       ->GetActiveCamera());
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////////////////////
+@@ -190,7 +196,8 @@ void
+ pcl::modeler::RenderWindow::setShowAxes(bool flag)
+ {
+   if (flag)
+-    GetRenderWindow()->GetRenderers()->GetFirstRenderer()->AddActor(axes_);
++    getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->AddActor(axes_);
+   else
+-    GetRenderWindow()->GetRenderers()->GetFirstRenderer()->RemoveActor(axes_);
++    getRenderWindowCompat(*this)->GetRenderers()->GetFirstRenderer()->RemoveActor(
++        axes_);
+ }
+diff --git a/apps/src/manual_registration/manual_registration.cpp b/apps/src/manual_registration/manual_registration.cpp
+index 1085b7f290..4f92ac19e2 100644
+--- a/apps/src/manual_registration/manual_registration.cpp
++++ b/apps/src/manual_registration/manual_registration.cpp
+@@ -49,6 +49,7 @@
+ #include <vtkCamera.h>
+ #include <vtkRenderWindow.h>
+ #include <vtkRendererCollection.h>
++#include <vtkGenericOpenGLRenderWindow.h>
+ 
+ using namespace pcl;
+ 
+@@ -67,29 +68,46 @@ ManualRegistration::ManualRegistration()
+   this->setWindowTitle("PCL Manual Registration");
+ 
+   // Set up the source window
++#if VTK_MAJOR_VERSION > 8
++  auto renderer_src = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow_src = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow_src->AddRenderer(renderer_src);
++  vis_src_.reset(new pcl::visualization::PCLVisualizer(renderer_src, renderWindow_src, "", false));
++#else
+   vis_src_.reset(new pcl::visualization::PCLVisualizer("", false));
+-  ui_->qvtk_widget_src->SetRenderWindow(vis_src_->getRenderWindow());
+-  vis_src_->setupInteractor(ui_->qvtk_widget_src->GetInteractor(),
+-                            ui_->qvtk_widget_src->GetRenderWindow());
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*(ui_->qvtk_widget_src),*(vis_src_->getRenderWindow()));
++  vis_src_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget_src)),
++                            getRenderWindowCompat(*(ui_->qvtk_widget_src)));
++
+   vis_src_->getInteractorStyle()->setKeyboardModifier(
+       pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+-  ui_->qvtk_widget_src->update();
+ 
+   vis_src_->registerPointPickingCallback(&ManualRegistration::SourcePointPickCallback,
+                                          *this);
+ 
+   // Set up the destination window
++#if VTK_MAJOR_VERSION > 8
++  auto renderer_dst = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow_dst = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow_dst->AddRenderer(renderer_dst);
++  vis_dst_.reset(new pcl::visualization::PCLVisualizer(renderer_dst, renderWindow_dst, "", false));
++#else
+   vis_dst_.reset(new pcl::visualization::PCLVisualizer("", false));
+-  ui_->qvtk_widget_dst->SetRenderWindow(vis_dst_->getRenderWindow());
+-  vis_dst_->setupInteractor(ui_->qvtk_widget_dst->GetInteractor(),
+-                            ui_->qvtk_widget_dst->GetRenderWindow());
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*(ui_->qvtk_widget_dst), *(vis_dst_->getRenderWindow()));
++  vis_dst_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget_dst)),
++                            getRenderWindowCompat(*(ui_->qvtk_widget_dst)));
++
++
+   vis_dst_->getInteractorStyle()->setKeyboardModifier(
+-      pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+-  ui_->qvtk_widget_dst->update();
++    pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+ 
+   vis_dst_->registerPointPickingCallback(&ManualRegistration::DstPointPickCallback,
+                                          *this);
+-
++  // Render view
++  refreshView();
++  
+   // Connect all buttons
+   connect(ui_->confirmSrcPointButton,
+           SIGNAL(clicked()),
+@@ -237,8 +255,8 @@ ManualRegistration::orthoChanged(int state)
+         ->GetActiveCamera()
+         ->SetParallelProjection(1);
+   }
+-  ui_->qvtk_widget_src->update();
+-  ui_->qvtk_widget_dst->update();
++
++  refreshView();
+ }
+ 
+ // TODO
+@@ -275,8 +293,17 @@ ManualRegistration::timeoutSlot()
+     }
+     cloud_dst_modified_ = false;
+   }
+-  ui_->qvtk_widget_src->update();
++  refreshView();
++}
++
++void
++ManualRegistration::refreshView()
++{
++#if VTK_MAJOR_VERSION > 8
++  ui_->qvtk_widget_dst->renderWindow()->Render();
++#else
+   ui_->qvtk_widget_dst->update();
++#endif // VTK_MAJOR_VERSION > 8
+ }
+ 
+ void
+diff --git a/apps/src/manual_registration/manual_registration.ui b/apps/src/manual_registration/manual_registration.ui
+index 3728fd1f91..1d4032f371 100644
+--- a/apps/src/manual_registration/manual_registration.ui
++++ b/apps/src/manual_registration/manual_registration.ui
+@@ -37,7 +37,7 @@
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="3">
+-     <widget class="QVTKWidget" name="qvtk_widget_src">
++     <widget class="PCLQVTKWidget" name="qvtk_widget_src">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>255</horstretch>
+@@ -133,7 +133,7 @@
+      </layout>
+     </item>
+     <item row="0" column="7">
+-     <widget class="QVTKWidget" name="qvtk_widget_dst">
++     <widget class="PCLQVTKWidget" name="qvtk_widget_dst">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>255</horstretch>
+@@ -161,9 +161,9 @@
+  </widget>
+  <customwidgets>
+   <customwidget>
+-   <class>QVTKWidget</class>
+-   <extends>QWidget</extends>
+-   <header>QVTKWidget.h</header>
++   <class>PCLQVTKWidget</class>
++   <extends>QOpenGLWidget</extends>
++   <header location="global">pcl/visualization/qvtk_compatibility.h</header>
+   </customwidget>
+  </customwidgets>
+  <resources/>
+diff --git a/apps/src/openni_octree_compression.cpp b/apps/src/openni_octree_compression.cpp
+index 3ded13cfe5..bba10c7ed0 100644
+--- a/apps/src/openni_octree_compression.cpp
++++ b/apps/src/openni_octree_compression.cpp
+@@ -382,7 +382,7 @@ main(int argc, char** argv)
+   if (!bServerFileMode) {
+     if (bEnDecode) {
+       // ENCODING
+-      ofstream compressedPCFile;
++      std::ofstream compressedPCFile;
+       compressedPCFile.open(fileName.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+ 
+       if (!bShowInputCloud) {
+diff --git a/apps/src/openni_passthrough.cpp b/apps/src/openni_passthrough.cpp
+index a8496986da..cf218c978b 100644
+--- a/apps/src/openni_passthrough.cpp
++++ b/apps/src/openni_passthrough.cpp
+@@ -35,6 +35,8 @@
+  *
+  */
+ 
++#include <ui_openni_passthrough.h>
++
+ #include <pcl/apps/openni_passthrough.h>
+ #include <pcl/console/parse.h>
+ 
+@@ -44,6 +46,8 @@
+ #include <QObject>
+ 
+ #include <vtkRenderWindow.h>
++#include <vtkRendererCollection.h>
++#include <vtkGenericOpenGLRenderWindow.h>
+ 
+ #include <thread>
+ 
+@@ -61,13 +65,21 @@ OpenNIPassthrough::OpenNIPassthrough(pcl::OpenNIGrabber& grabber)
+   ui_->setupUi(this);
+ 
+   this->setWindowTitle("PCL OpenNI PassThrough Viewer");
++  //Create the QVTKWidget
++#if VTK_MAJOR_VERSION > 8
++  auto renderer = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow->AddRenderer(renderer);
++  vis_.reset(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
++#else
+   vis_.reset(new pcl::visualization::PCLVisualizer("", false));
+-  ui_->qvtk_widget->SetRenderWindow(vis_->getRenderWindow());
+-  vis_->setupInteractor(ui_->qvtk_widget->GetInteractor(),
+-                        ui_->qvtk_widget->GetRenderWindow());
+-  vis_->getInteractorStyle()->setKeyboardModifier(
+-      pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+-  ui_->qvtk_widget->update();
++#endif
++  setRenderWindowCompat(*(ui_->qvtk_widget),*(vis_->getRenderWindow()));
++  vis_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget)), getRenderWindowCompat(*(ui_->qvtk_widget)));
++  
++  vis_->getInteractorStyle()->setKeyboardModifier(pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++  
++  refreshView();
+ 
+   // Start the OpenNI data acquision
+   std::function<void(const CloudConstPtr&)> f = [this](const CloudConstPtr& cloud) {
+@@ -125,6 +137,16 @@ OpenNIPassthrough::timeoutSlot()
+   ui_->qvtk_widget->update();
+ }
+ 
++void
++OpenNIPassthrough::refreshView()
++{
++#if VTK_MAJOR_VERSION > 8
++  ui_->qvtk_widget->renderWindow()->Render();
++#else
++  ui_->qvtk_widget->update();
++#endif // VTK_MAJOR_VERSION > 8
++}
++
+ int
+ main(int argc, char** argv)
+ {
+diff --git a/apps/src/openni_passthrough.ui b/apps/src/openni_passthrough.ui
+index 47035fd209..39d29a2b9d 100644
+--- a/apps/src/openni_passthrough.ui
++++ b/apps/src/openni_passthrough.ui
+@@ -37,7 +37,7 @@
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="0">
+-     <widget class="QVTKWidget" name="qvtk_widget">
++     <widget class="PCLQVTKWidget" name="qvtk_widget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>255</horstretch>
+@@ -94,9 +94,9 @@
+  </widget>
+  <customwidgets>
+   <customwidget>
+-   <class>QVTKWidget</class>
+-   <extends>QWidget</extends>
+-   <header>QVTKWidget.h</header>
++   <class>PCLQVTKWidget</class>
++   <extends>QOpenGLWidget</extends>
++   <header location="global">pcl/visualization/qvtk_compatibility.h</header>
+   </customwidget>
+  </customwidgets>
+  <resources>
+diff --git a/apps/src/organized_segmentation_demo.cpp b/apps/src/organized_segmentation_demo.cpp
+index e869dfc769..5529eb87d6 100644
+--- a/apps/src/organized_segmentation_demo.cpp
++++ b/apps/src/organized_segmentation_demo.cpp
+@@ -12,6 +12,8 @@
+ #include <QObject>
+ 
+ #include <vtkRenderWindow.h>
++#include <vtkRendererCollection.h>
++#include <vtkGenericOpenGLRenderWindow.h>
+ 
+ // #include <boost/filesystem.hpp>  // for boost::filesystem::directory_iterator
+ #include <boost/signals2/connection.hpp> // for boost::signals2::connection
+@@ -204,13 +206,23 @@ OrganizedSegmentationDemo::OrganizedSegmentationDemo(pcl::Grabber& grabber)
+   ui_->setupUi(this);
+ 
+   this->setWindowTitle("PCL Organized Connected Component Segmentation Demo");
++  
++#if VTK_MAJOR_VERSION > 8
++  auto renderer = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow->AddRenderer(renderer);
++  vis_.reset(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
++#else
+   vis_.reset(new pcl::visualization::PCLVisualizer("", false));
+-  ui_->qvtk_widget->SetRenderWindow(vis_->getRenderWindow());
+-  vis_->setupInteractor(ui_->qvtk_widget->GetInteractor(),
+-                        ui_->qvtk_widget->GetRenderWindow());
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*(ui_->qvtk_widget),*(vis_->getRenderWindow()));
++  vis_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget)), getRenderWindowCompat(*(ui_->qvtk_widget)));
++  
++  refreshView();
++  
+   vis_->getInteractorStyle()->setKeyboardModifier(
+       pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+-  ui_->qvtk_widget->update();
++  
+ 
+   std::function<void(const CloudConstPtr&)> f = [this](const CloudConstPtr& cloud) {
+     cloud_cb(cloud);
+@@ -308,6 +320,16 @@ OrganizedSegmentationDemo::OrganizedSegmentationDemo(pcl::Grabber& grabber)
+   grabber_.start();
+ }
+ 
++void
++OrganizedSegmentationDemo::refreshView()
++{
++#if VTK_MAJOR_VERSION > 8
++  ui_->qvtk_widget->renderWindow()->Render();
++#else
++  ui_->qvtk_widget->update();
++#endif // VTK_MAJOR_VERSION > 8
++}
++
+ void
+ OrganizedSegmentationDemo::cloud_cb(const CloudConstPtr& cloud)
+ {
+@@ -440,8 +462,7 @@ OrganizedSegmentationDemo::timeoutSlot()
+       data_modified_ = false;
+     }
+   }
+-
+-  ui_->qvtk_widget->update();
++  refreshView();
+ }
+ 
+ void
+diff --git a/apps/src/organized_segmentation_demo.ui b/apps/src/organized_segmentation_demo.ui
+index 53174633f5..20951b52b9 100644
+--- a/apps/src/organized_segmentation_demo.ui
++++ b/apps/src/organized_segmentation_demo.ui
+@@ -37,7 +37,7 @@
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="3">
+-     <widget class="QVTKWidget" name="qvtk_widget">
++     <widget class="PCLQVTKWidget" name="qvtk_widget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>255</horstretch>
+@@ -214,9 +214,9 @@
+  </widget>
+  <customwidgets>
+   <customwidget>
+-   <class>QVTKWidget</class>
+-   <extends>QWidget</extends>
+-   <header>QVTKWidget.h</header>
++   <class>PCLQVTKWidget</class>
++   <extends>QOpenGLWidget</extends>
++   <header location="global">pcl/visualization/qvtk_compatibility.h</header>
+   </customwidget>
+  </customwidgets>
+  <resources>
+diff --git a/apps/src/pcd_video_player/pcd_video_player.cpp b/apps/src/pcd_video_player/pcd_video_player.cpp
+index 15db9d7dad..a5d2286dac 100644
+--- a/apps/src/pcd_video_player/pcd_video_player.cpp
++++ b/apps/src/pcd_video_player/pcd_video_player.cpp
+@@ -35,6 +35,8 @@
+  *
+  */
+ 
++#include <ui_pcd_video_player.h>
++
+ #include <pcl/apps/pcd_video_player.h>
+ #include <pcl/io/pcd_io.h>
+ #include <pcl/point_types.h>
+@@ -51,6 +53,7 @@
+ #include <vtkCamera.h>
+ #include <vtkRenderWindow.h>
+ #include <vtkRendererCollection.h>
++#include <vtkGenericOpenGLRenderWindow.h>
+ 
+ #include <fstream>
+ #include <iostream>
+@@ -80,14 +83,21 @@ PCDVideoPlayer::PCDVideoPlayer()
+   // Setup the cloud pointer
+   cloud_.reset(new pcl::PointCloud<pcl::PointXYZRGBA>);
+ 
+-  // Set up the qvtk window
++  //Create the QVTKWidget
++#if VTK_MAJOR_VERSION > 8
++  auto renderer = vtkSmartPointer<vtkRenderer>::New();
++  auto renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
++  renderWindow->AddRenderer(renderer);
++  vis_.reset(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
++#else
+   vis_.reset(new pcl::visualization::PCLVisualizer("", false));
+-  ui_->qvtkWidget->SetRenderWindow(vis_->getRenderWindow());
+-  vis_->setupInteractor(ui_->qvtkWidget->GetInteractor(),
+-                        ui_->qvtkWidget->GetRenderWindow());
+-  vis_->getInteractorStyle()->setKeyboardModifier(
+-      pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+-  ui_->qvtkWidget->update();
++#endif // VTK_MAJOR_VERSION > 8
++  setRenderWindowCompat(*(ui_->qvtk_widget),*(vis_->getRenderWindow()));
++  vis_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget)), getRenderWindowCompat(*(ui_->qvtk_widget)));
++
++  vis_->getInteractorStyle()->setKeyboardModifier(pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
++
++  refreshView();
+ 
+   // Connect all buttons
+   connect(ui_->playButton, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
+@@ -258,7 +268,8 @@ PCDVideoPlayer::timeoutSlot()
+     }
+     cloud_modified_ = false;
+   }
+-  ui_->qvtkWidget->update();
++
++  refreshView();
+ }
+ 
+ void
+@@ -269,6 +280,16 @@ PCDVideoPlayer::indexSliderValueChanged(int value)
+   cloud_modified_ = true;
+ }
+ 
++void
++PCDVideoPlayer::refreshView()
++{
++#if VTK_MAJOR_VERSION > 8
++  ui_->qvtk_widget->renderWindow()->Render();
++#else
++  ui_->qvtk_widget->update();
++#endif // VTK_MAJOR_VERSION > 8
++}
++
+ void
+ print_usage()
+ {
+diff --git a/apps/src/pcd_video_player/pcd_video_player.ui b/apps/src/pcd_video_player/pcd_video_player.ui
+index c80ed5d494..8d891bf905 100644
+--- a/apps/src/pcd_video_player/pcd_video_player.ui
++++ b/apps/src/pcd_video_player/pcd_video_player.ui
+@@ -14,122 +14,108 @@
+    <string>MainWindow</string>
+   </property>
+   <widget class="QWidget" name="centralwidget">
+-   <widget class="QWidget" name="verticalLayoutWidget">
+-    <property name="geometry">
+-     <rect>
+-      <x>339</x>
+-      <y>10</y>
+-      <width>451</width>
+-      <height>531</height>
+-     </rect>
+-    </property>
+-    <layout class="QVBoxLayout" name="verticalLayout">
+-     <item>
+-      <widget class="QVTKWidget" name="qvtkWidget"/>
+-     </item>
+-     <item>
+-      <widget class="QSlider" name="indexSlider">
+-       <property name="orientation">
+-        <enum>Qt::Horizontal</enum>
+-       </property>
+-      </widget>
+-     </item>
+-    </layout>
+-   </widget>
+-   <widget class="QWidget" name="verticalLayoutWidget_2">
+-    <property name="geometry">
+-     <rect>
+-      <x>9</x>
+-      <y>9</y>
+-      <width>321</width>
+-      <height>531</height>
+-     </rect>
+-    </property>
+-    <layout class="QVBoxLayout" name="verticalLayout_2">
+-     <item>
+-      <widget class="QPushButton" name="selectFilesButton">
+-       <property name="text">
+-        <string>Select PCD Files</string>
+-       </property>
+-      </widget>
+-     </item>
+-     <item>
+-      <widget class="QPushButton" name="selectFolderButton">
+-       <property name="text">
+-        <string>Select Folder</string>
+-       </property>
+-      </widget>
+-     </item>
+-     <item>
+-      <widget class="Line" name="line_2">
+-       <property name="orientation">
+-        <enum>Qt::Horizontal</enum>
+-       </property>
+-      </widget>
+-     </item>
+-     <item>
+-      <spacer name="verticalSpacer">
+-       <property name="orientation">
+-        <enum>Qt::Vertical</enum>
+-       </property>
+-       <property name="sizeHint" stdset="0">
+-        <size>
+-         <width>20</width>
+-         <height>40</height>
+-        </size>
+-       </property>
+-      </spacer>
+-     </item>
+-     <item>
+-      <widget class="Line" name="line_3">
+-       <property name="orientation">
+-        <enum>Qt::Horizontal</enum>
+-       </property>
+-      </widget>
+-     </item>
+-     <item>
+-      <layout class="QHBoxLayout" name="horizontalLayout">
+-       <item>
+-        <widget class="QToolButton" name="backButton">
+-         <property name="text">
+-          <string>...</string>
+-         </property>
+-         <property name="arrowType">
+-          <enum>Qt::LeftArrow</enum>
+-         </property>
+-        </widget>
+-       </item>
+-       <item>
+-        <widget class="QToolButton" name="stopButton">
+-         <property name="text">
+-          <string>Stop</string>
+-         </property>
+-        </widget>
+-       </item>
+-       <item>
+-        <widget class="QToolButton" name="playButton">
+-         <property name="text">
+-          <string>Play</string>
+-         </property>
+-         <property name="arrowType">
+-          <enum>Qt::NoArrow</enum>
+-         </property>
+-        </widget>
+-       </item>
+-       <item>
+-        <widget class="QToolButton" name="nextButton">
+-         <property name="text">
+-          <string>...</string>
+-         </property>
+-         <property name="arrowType">
+-          <enum>Qt::RightArrow</enum>
+-         </property>
+-        </widget>
+-       </item>
+-      </layout>
+-     </item>
+-    </layout>
+-   </widget>
++   <layout class="QHBoxLayout" name="horizontalLayout_2">
++    <item>
++     <layout class="QVBoxLayout" name="verticalLayout_2">
++      <item>
++       <widget class="QPushButton" name="selectFilesButton">
++        <property name="text">
++         <string>Select PCD Files</string>
++        </property>
++       </widget>
++      </item>
++      <item>
++       <widget class="QPushButton" name="selectFolderButton">
++        <property name="text">
++         <string>Select Folder</string>
++        </property>
++       </widget>
++      </item>
++      <item>
++       <widget class="Line" name="line_2">
++        <property name="orientation">
++         <enum>Qt::Horizontal</enum>
++        </property>
++       </widget>
++      </item>
++      <item>
++       <spacer name="verticalSpacer">
++        <property name="orientation">
++         <enum>Qt::Vertical</enum>
++        </property>
++        <property name="sizeHint" stdset="0">
++         <size>
++          <width>20</width>
++          <height>40</height>
++         </size>
++        </property>
++       </spacer>
++      </item>
++      <item>
++       <widget class="Line" name="line_3">
++        <property name="orientation">
++         <enum>Qt::Horizontal</enum>
++        </property>
++       </widget>
++      </item>
++      <item>
++       <layout class="QHBoxLayout" name="horizontalLayout">
++        <item>
++         <widget class="QToolButton" name="backButton">
++          <property name="text">
++           <string>...</string>
++          </property>
++          <property name="arrowType">
++           <enum>Qt::LeftArrow</enum>
++          </property>
++         </widget>
++        </item>
++        <item>
++         <widget class="QToolButton" name="stopButton">
++          <property name="text">
++           <string>Stop</string>
++          </property>
++         </widget>
++        </item>
++        <item>
++         <widget class="QToolButton" name="playButton">
++          <property name="text">
++           <string>Play</string>
++          </property>
++          <property name="arrowType">
++           <enum>Qt::NoArrow</enum>
++          </property>
++         </widget>
++        </item>
++        <item>
++         <widget class="QToolButton" name="nextButton">
++          <property name="text">
++           <string>...</string>
++          </property>
++          <property name="arrowType">
++           <enum>Qt::RightArrow</enum>
++          </property>
++         </widget>
++        </item>
++       </layout>
++      </item>
++     </layout>
++    </item>
++    <item>
++     <layout class="QVBoxLayout" name="verticalLayout">
++      <item>
++       <widget class="PCLQVTKWidget" name="qvtk_widget"/>
++      </item>
++      <item>
++       <widget class="QSlider" name="indexSlider">
++        <property name="orientation">
++         <enum>Qt::Horizontal</enum>
++        </property>
++       </widget>
++      </item>
++     </layout>
++    </item>
++   </layout>
+   </widget>
+   <widget class="QMenuBar" name="menubar">
+    <property name="geometry">
+@@ -137,7 +123,7 @@
+      <x>0</x>
+      <y>0</y>
+      <width>800</width>
+-     <height>25</height>
++     <height>21</height>
+     </rect>
+    </property>
+   </widget>
+@@ -145,9 +131,9 @@
+  </widget>
+  <customwidgets>
+   <customwidget>
+-   <class>QVTKWidget</class>
+-   <extends>QWidget</extends>
+-   <header>QVTKWidget.h</header>
++   <class>PCLQVTKWidget</class>
++   <extends>QOpenGLWidget</extends>
++   <header location="global">pcl/visualization/qvtk_compatibility.h</header>
+   </customwidget>
+  </customwidgets>
+  <resources/>
+diff --git a/apps/src/render_views_tesselated_sphere.cpp b/apps/src/render_views_tesselated_sphere.cpp
+index 3c6b7798fd..002e28c3d1 100644
+--- a/apps/src/render_views_tesselated_sphere.cpp
++++ b/apps/src/render_views_tesselated_sphere.cpp
+@@ -7,6 +7,7 @@
+ 
+ #include <pcl/apps/render_views_tesselated_sphere.h>
+ #include <pcl/point_types.h>
++#include <pcl/visualization/vtk/pcl_vtk_compatibility.h>
+ 
+ #include <vtkActor.h>
+ #include <vtkCamera.h>
+@@ -26,6 +27,7 @@
+ #include <vtkTransformFilter.h>
+ #include <vtkTriangle.h>
+ #include <vtkWorldPointPicker.h>
++#include <vtkIdTypeArray.h>
+ 
+ #include <array>
+ 
+@@ -34,7 +36,8 @@ pcl::apps::RenderViewsTesselatedSphere::generateViews()
+ {
+   // center object
+   double CoM[3];
+-  vtkIdType npts_com = 0, *ptIds_com = nullptr;
++  vtkIdType npts_com = 0;
++  vtkCellPtsPtr ptIds_com = nullptr;
+   vtkSmartPointer<vtkCellArray> cells_com = polydata_->GetPolys();
+ 
+   double center[3], p1_com[3], p2_com[3], p3_com[3], totalArea_com = 0;
+@@ -95,7 +98,8 @@ pcl::apps::RenderViewsTesselatedSphere::generateViews()
+   // * Compute area of the mesh
+   //////////////////////////////
+   vtkSmartPointer<vtkCellArray> cells = mapper->GetInput()->GetPolys();
+-  vtkIdType npts = 0, *ptIds = nullptr;
++  vtkIdType npts = 0;
++  vtkCellPtsPtr ptIds = nullptr;
+ 
+   double p1[3], p2[3], p3[3], totalArea = 0;
+   for (cells->InitTraversal(); cells->GetNextCell(npts, ptIds);) {
+@@ -363,7 +367,8 @@ pcl::apps::RenderViewsTesselatedSphere::generateViews()
+       polydata->BuildCells();
+ 
+       vtkSmartPointer<vtkCellArray> cells = polydata->GetPolys();
+-      vtkIdType npts = 0, *ptIds = nullptr;
++      vtkIdType npts = 0;
++      vtkCellPtsPtr ptIds = nullptr;
+ 
+       double p1[3], p2[3], p3[3], area, totalArea = 0;
+       for (cells->InitTraversal(); cells->GetNextCell(npts, ptIds);) {
+
+From b4cba32aee2bc4802ed9e35e26a65c185303b8f6 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 29 Jan 2021 11:33:31 +0100
+Subject: [PATCH 14/15] Ship findGLEW as MacOS version is buggy?
+
+---
+ cmake/Modules/FindGLEW.cmake | 69 ++++++++++++++++++++++++++++++++++++
+ simulation/CMakeLists.txt    |  8 ++---
+ 2 files changed, 71 insertions(+), 6 deletions(-)
+ create mode 100644 cmake/Modules/FindGLEW.cmake
+
+diff --git a/cmake/Modules/FindGLEW.cmake b/cmake/Modules/FindGLEW.cmake
+new file mode 100644
+index 0000000000..b0e1defcf8
+--- /dev/null
++++ b/cmake/Modules/FindGLEW.cmake
+@@ -0,0 +1,69 @@
++# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
++# file Copyright.txt or https://cmake.org/licensing for details.
++
++#.rst:
++# FindGLEW
++# --------
++#
++# Find the OpenGL Extension Wrangler Library (GLEW)
++#
++# IMPORTED Targets
++# ^^^^^^^^^^^^^^^^
++#
++# This module defines the :prop_tgt:`IMPORTED` target ``GLEW::GLEW``,
++# if GLEW has been found.
++#
++# Result Variables
++# ^^^^^^^^^^^^^^^^
++#
++# This module defines the following variables:
++#
++# ::
++#
++#   GLEW_INCLUDE_DIRS - include directories for GLEW
++#   GLEW_LIBRARIES - libraries to link against GLEW
++#   GLEW_FOUND - true if GLEW has been found and can be used
++
++find_path(GLEW_INCLUDE_DIR GL/glew.h)
++
++if(NOT GLEW_LIBRARY)
++  find_library(GLEW_LIBRARY_RELEASE NAMES GLEW glew32 glew glew32s PATH_SUFFIXES lib64 libx32)
++  find_library(GLEW_LIBRARY_DEBUG NAMES GLEWd glew32d glewd PATH_SUFFIXES lib64)
++
++  include(SelectLibraryConfigurations)
++  select_library_configurations(GLEW)
++endif ()
++
++include(FindPackageHandleStandardArgs)
++find_package_handle_standard_args(GLEW
++                                  REQUIRED_VARS GLEW_INCLUDE_DIR GLEW_LIBRARY)
++
++if(GLEW_FOUND)
++  set(GLEW_INCLUDE_DIRS ${GLEW_INCLUDE_DIR})
++
++  if(NOT GLEW_LIBRARIES)
++    set(GLEW_LIBRARIES ${GLEW_LIBRARY})
++  endif()
++
++  if (NOT TARGET GLEW::GLEW)
++    add_library(GLEW::GLEW UNKNOWN IMPORTED)
++    set_target_properties(GLEW::GLEW PROPERTIES
++      INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
++
++    if(GLEW_LIBRARY_RELEASE)
++      set_property(TARGET GLEW::GLEW APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
++      set_target_properties(GLEW::GLEW PROPERTIES IMPORTED_LOCATION_RELEASE "${GLEW_LIBRARY_RELEASE}")
++    endif()
++
++    if(GLEW_LIBRARY_DEBUG)
++      set_property(TARGET GLEW::GLEW APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
++      set_target_properties(GLEW::GLEW PROPERTIES IMPORTED_LOCATION_DEBUG "${GLEW_LIBRARY_DEBUG}")
++    endif()
++
++    if(NOT GLEW_LIBRARY_RELEASE AND NOT GLEW_LIBRARY_DEBUG)
++      set_property(TARGET GLEW::GLEW APPEND PROPERTY IMPORTED_LOCATION "${GLEW_LIBRARY}")
++    endif()
++  endif()
++endif()
++
++mark_as_advanced(GLEW_INCLUDE_DIR)
+\ No newline at end of file
+diff --git a/simulation/CMakeLists.txt b/simulation/CMakeLists.txt
+index 22dd6070ef..827c366a12 100644
+--- a/simulation/CMakeLists.txt
++++ b/simulation/CMakeLists.txt
+@@ -4,12 +4,8 @@ set(SUBSYS_DEPS common io surface kdtree features search octree visualization fi
+ 
+ set(build FALSE)
+ find_package(OpenGL)
+-if(APPLE)
+-  # homebrew's FindGLEW module is not in good shape
+-  find_package(glew CONFIG)
+-ELSE()
+-  find_package(GLEW)
+-ENDIF()
++
++find_package(GLEW)
+ 
+ PCL_SUBSYS_OPTION(build "${SUBSYS_NAME}" "${SUBSYS_DESC}" OFF)
+ PCL_SUBSYS_DEPEND(build "${SUBSYS_NAME}" DEPS ${SUBSYS_DEPS} EXT_DEPS opengl glew)
+
+From a7743323e4ce629c5d45f0e2fbec9a292cd7b509 Mon Sep 17 00:00:00 2001
+From: Lars Glud <larshg@gmail.com>
+Date: Fri, 29 Jan 2021 14:18:35 +0100
+Subject: [PATCH 15/15] use auto to deduce correct type.
+
+---
+ simulation/src/model.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/simulation/src/model.cpp b/simulation/src/model.cpp
+index e2ef8de51b..d1bf600e09 100644
+--- a/simulation/src/model.cpp
++++ b/simulation/src/model.cpp
+@@ -22,7 +22,7 @@ pcl::simulation::TriangleMeshModel::TriangleMeshModel(pcl::PolygonMesh::Ptr plg)
+ 
+     Eigen::Vector4f tmp;
+     for (const auto& polygon : plg->polygons) {
+-      for (const unsigned int& point : polygon.vertices) {
++      for (const auto& point : polygon.vertices) {
+         tmp = newcloud[point].getVector4fMap();
+         vertices.push_back(Vertex(Eigen::Vector3f(tmp(0), tmp(1), tmp(2)),
+                                   Eigen::Vector3f(newcloud[point].r / 255.0f,
+@@ -37,7 +37,7 @@ pcl::simulation::TriangleMeshModel::TriangleMeshModel(pcl::PolygonMesh::Ptr plg)
+     pcl::fromPCLPointCloud2(plg->cloud, newcloud);
+     Eigen::Vector4f tmp;
+     for (const auto& polygon : plg->polygons) {
+-      for (const unsigned int& point : polygon.vertices) {
++      for (const auto& point : polygon.vertices) {
+         tmp = newcloud[point].getVector4fMap();
+         vertices.push_back(Vertex(Eigen::Vector3f(tmp(0), tmp(1), tmp(2)),
+                                   Eigen::Vector3f(1.0, 1.0, 1.0)));
+
