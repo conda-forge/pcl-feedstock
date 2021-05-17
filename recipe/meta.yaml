@@ -51,8 +51,6 @@ test:
   commands:
     - test -d $PREFIX/include/{{ name }}-{{ major_version }}.{{ minor_version }}/{{ name }}              # [not win] 
     - if not exist %LIBRARY_INC%\\{{ name }}-{{ major_version }}.{{ minor_version }}\\{{ name }} exit 1  # [win] 
-    - conda inspect linkages -p $PREFIX {{ name|lower }}             # [not win]
-    - conda inspect objects -p $PREFIX {{ name|lower }}              # [osx]
 
 about:
   home: http://www.pointclouds.org
