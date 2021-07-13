@@ -17,7 +17,9 @@ source:
     - fix-visualization.patch
 
 build:
-  number: 4
+  number: 5
+  run_exports:
+    - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
 requirements:
   build:
