@@ -1,7 +1,7 @@
 boost_cpp:
 - 1.74.0
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - conda-forge main
 cxx_compiler:
@@ -22,4 +22,4 @@ pin_run_as_build:
 target_platform:
 - win-64
 vtk:
-- 9.0.1
+- 9.0.3
