@@ -30,4 +30,4 @@ pin_run_as_build:
 target_platform:
 - osx-64
 vtk:
-- 9.0.3
+- 9.1.0
