@@ -17,6 +17,7 @@ else
     "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
     "-DWITH_QT:BOOL=OFF"
   )
+    # "-DOPENGL_glx_LIBRARY:PATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
 fi
 
 if [[ "$build_variant" == "egl" ]]; then
