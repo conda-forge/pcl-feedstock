@@ -30,6 +30,7 @@ requirements:
     - {{ cdt('libxxf86vm') }}         # [linux]
     - {{ cdt('libxext') }}            # [linux]
     - {{ cdt('mesa-libegl-devel') }}  # [build_variant == "egl"]
+    - sysroot_linux-64 2.17           # [build_variant == "osmesa"]
     - cmake
     - ninja                           # [win]
     - make                            # [unix]
