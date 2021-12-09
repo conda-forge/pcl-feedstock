@@ -23,12 +23,12 @@ build:
 requirements:
   build:
     - {{ compiler('cxx') }}
-    - {{ cdt('mesa-libgl-devel') }}   # [linux and build_variant != "osmesa"]
-    - {{ cdt('mesa-dri-drivers') }}   # [linux and build_variant != "osmesa"]
-    - {{ cdt('libselinux') }}         # [linux and build_variant != "osmesa"]
-    - {{ cdt('libxdamage') }}         # [linux and build_variant != "osmesa"]
-    - {{ cdt('libxxf86vm') }}         # [linux and build_variant != "osmesa"]
-    - {{ cdt('libxext') }}            # [linux and build_variant != "osmesa"]
+    - {{ cdt('mesa-libgl-devel') }}   # [linux]
+    - {{ cdt('mesa-dri-drivers') }}   # [linux]
+    - {{ cdt('libselinux') }}         # [linux]
+    - {{ cdt('libxdamage') }}         # [linux]
+    - {{ cdt('libxxf86vm') }}         # [linux]
+    - {{ cdt('libxext') }}            # [linux]
     - {{ cdt('mesa-libegl-devel') }}  # [build_variant == "egl"]
     - cmake
     - ninja                           # [win]
