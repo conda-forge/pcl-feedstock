@@ -11,9 +11,10 @@ else
   # Common between EGL and OSMesa
   # We're linking the GLEW library that is included in VTK because it is compiled
   # with EGL and OSMesa.
+  VTK_VERSION=$(find ${PREFIX}/lib -name "libvtkglew*so" | sed 's/.*libvtkglew-//' | cut -c -3)
   EXTRA_CMAKE_ARGS+=(
-    "-DGLEW_INCLUDE_DIR:PATH=${PREFIX}/include/vtk-9.1/vtkglew/include/GL/"
-    "-DGLEW_LIBRARY:PATH=${PREFIX}/lib/libvtkglew-9.1.so"
+    "-DGLEW_INCLUDE_DIR:PATH=${PREFIX}/include/vtk-${VTK_VERSION}/vtkglew/include/GL/"
+    "-DGLEW_LIBRARY:PATH=${PREFIX}/lib/libvtkglew-${VTK_VERSION}.so"
     "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
     "-DWITH_QT:BOOL=OFF"
   )
