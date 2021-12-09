@@ -1,4 +1,7 @@
-
+build_variant:
+  - "qt"
+  - "osmesa"  # [linux64]
+  - "egl"     # [linux64]
 MACOSX_DEPLOYMENT_TARGET:  # [osx and x86_64]
   - "10.12"                # [osx and x86_64]
 MACOSX_SDK_VERSION:        # [osx and x86_64]
