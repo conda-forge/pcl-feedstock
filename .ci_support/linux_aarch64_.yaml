@@ -2,6 +2,8 @@ BUILD:
 - aarch64-conda_cos7-linux-gnu
 boost_cpp:
 - 1.74.0
+build_variant:
+- qt
 cdt_arch:
 - aarch64
 cdt_name:
@@ -15,7 +17,7 @@ cxx_compiler:
 cxx_compiler_version:
 - '9'
 docker_image:
-- quay.io/condaforge/linux-anvil-comp7
+- quay.io/condaforge/linux-anvil-cos7-x86_64
 flann:
 - 1.9.1
 glew:
@@ -27,9 +29,5 @@ pin_run_as_build:
     max_pin: x.x.x
   glew:
     max_pin: x.x
-  vtk:
-    max_pin: x.x.x
 target_platform:
 - linux-aarch64
-vtk:
-- 9.1.0
