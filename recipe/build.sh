@@ -8,7 +8,15 @@ if [[ "$build_variant" == "egl" ]]; then
   EXTRA_CMAKE_ARGS+=(
     "-DOPENGL_egl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib/libEGL.so.1"
     "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
+    "-DWITH_QT=OFF"
   )
+elif [[ "$build_variant" == "osmesa" ]]; then
+  CMAKE_ARGS+=(
+    "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
+    "-DWITH_QT=OFF"
+  )
+elif [[ "$build_variant" == "qt" ]]; then
+  CMAKE_ARGS+=("-DWITH_QT=ON")
 fi
 
 cmake \
@@ -26,7 +34,6 @@ cmake \
   -DWITH_PCAP=OFF \
   -DWITH_PNG=OFF \
   -DWITH_QHULL=ON \
-  -DWITH_QT=ON \
   -DWITH_VTK=ON \
   -DBUILD_global_tests=OFF \
   -DBUILD_examples=OFF \
