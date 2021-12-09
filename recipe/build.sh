@@ -9,6 +9,8 @@ if [[ "$build_variant" == "qt" ]]; then
   )
 else
   # Common between EGL and OSMesa
+  # We're linking the GLEW library that is included in VTK because it is compiled
+  # with EGL and OSMesa.
   EXTRA_CMAKE_ARGS+=(
     "-DGLEW_INCLUDE_DIR:PATH=${PREFIX}/include/vtk-9.1/vtkglew/include/GL/"
     "-DGLEW_LIBRARY:PATH=${PREFIX}/lib/libvtkglew-9.1.so"
