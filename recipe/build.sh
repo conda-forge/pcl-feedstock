@@ -3,20 +3,24 @@
 set -ex
 
 EXTRA_CMAKE_ARGS=()
+if [[ "$build_variant" == "qt" ]]; then
+  EXTRA_CMAKE_ARGS+=(
+    "-DWITH_QT:BOOL=ON"
+  )
+else
+  # Common between EGL and OSMesa
+  EXTRA_CMAKE_ARGS+=(
+    "-DGLEW_INCLUDE_DIR:PATH=${PREFIX}/include/vtk-9.1/vtkglew/include/GL/"
+    "-DGLEW_LIBRARY:PATH=${PREFIX}/lib/libvtkglew-9.1.so"
+    "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
+    "-DWITH_QT:BOOL=OFF"
+  )
+fi
 
 if [[ "$build_variant" == "egl" ]]; then
   EXTRA_CMAKE_ARGS+=(
     "-DOPENGL_egl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib/libEGL.so.1"
-    "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
-    "-DWITH_QT=OFF"
   )
-elif [[ "$build_variant" == "osmesa" ]]; then
-  CMAKE_ARGS+=(
-    "-DOPENGL_opengl_LIBRARY:FILEPATH=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
-    "-DWITH_QT=OFF"
-  )
-elif [[ "$build_variant" == "qt" ]]; then
-  CMAKE_ARGS+=("-DWITH_QT=ON")
 fi
 
 cmake \
