@@ -2,6 +2,13 @@
 
 set -ex
 
+if [[ "$target_platform" != "linux-ppc64le"
+        && "$target_platform" != "osx-arm64" ]]; then
+    QT_SUPPORT=ON
+else
+    QT_SUPPORT=OFF
+fi
+
 cmake \
   -DCMAKE_INSTALL_PREFIX=$PREFIX \
   -DCMAKE_BUILD_TYPE=Release \
@@ -17,7 +24,7 @@ cmake \
   -DWITH_PCAP=OFF \
   -DWITH_PNG=OFF \
   -DWITH_QHULL=ON \
-  -DWITH_QT=ON \
+  -DWITH_QT=${QT_SUPPORT} \
   -DWITH_VTK=ON \
   -DBUILD_global_tests=OFF \
   -DBUILD_examples=OFF \
