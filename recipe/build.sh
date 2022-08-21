@@ -29,9 +29,6 @@ cmake \
   -DBUILD_examples=OFF \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF \
-  -DPYTHON_EXECUTABLE="$PYTHON" \
-  -DPython_EXECUTABLE="$PYTHON" \
-  -DPython3_EXECUTABLE="$PYTHON" \
   -DBoost_NO_BOOST_CMAKE:BOOL=ON \
   ${CMAKE_ARGS}
 
