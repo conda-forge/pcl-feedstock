@@ -2,8 +2,7 @@
 
 set -ex
 
-if [[ "$target_platform" != "linux-ppc64le"
-        && "$target_platform" != "osx-arm64" ]]; then
+if [[ "$target_platform" != "linux-ppc64le" ]]; then
     QT_SUPPORT=ON
 else
     QT_SUPPORT=OFF
