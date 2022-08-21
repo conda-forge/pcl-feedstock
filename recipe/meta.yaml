@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 0
+  number: 1
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
@@ -38,6 +38,7 @@ requirements:
     - qhull
     - vtk
     - glew
+    - qt-main
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
