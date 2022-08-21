@@ -30,6 +30,7 @@ requirements:
     - cmake
     - ninja                          # [win]
     - make                           # [unix]
+    - pkgconfig                      # [unix]
   host:
     - xorg-libxfixes                 # [linux]
     - flann
