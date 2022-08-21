@@ -37,6 +37,7 @@ requirements:
     - boost-cpp
     - qhull
     - vtk
+    - libpng
     - glew
     - qt-main  # [not ppc64le]
   run:
