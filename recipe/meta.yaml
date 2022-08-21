@@ -38,7 +38,7 @@ requirements:
     - qhull
     - vtk
     - glew
-    - qt-main
+    - qt-main  # [not ppc64le]
   run:
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
