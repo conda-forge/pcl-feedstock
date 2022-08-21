@@ -16,6 +16,8 @@ flann:
 - 1.9.1
 glew:
 - '2.1'
+libpng:
+- '1.6'
 pin_run_as_build:
   boost-cpp:
     max_pin: x.x.x
@@ -23,8 +25,15 @@ pin_run_as_build:
     max_pin: x.x.x
   glew:
     max_pin: x.x
+  libpng:
+    max_pin: x.x
+  python:
+    min_pin: x.x
+    max_pin: x.x
   vtk:
     max_pin: x.x.x
+python:
+- 3.9.* *_cpython
 qt_main:
 - '5.15'
 target_platform:
