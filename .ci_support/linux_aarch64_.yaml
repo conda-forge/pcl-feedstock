@@ -1,7 +1,11 @@
+BUILD:
+- aarch64-conda_cos7-linux-gnu
 boost_cpp:
 - 1.74.0
+cdt_arch:
+- aarch64
 cdt_name:
-- cos6
+- cos7
 channel_sources:
 - conda-forge
 channel_targets:
@@ -27,16 +31,11 @@ pin_run_as_build:
     max_pin: x.x
   libpng:
     max_pin: x.x
-  python:
-    min_pin: x.x
-    max_pin: x.x
   vtk:
     max_pin: x.x.x
-python:
-- 3.9.* *_cpython
 qt_main:
 - '5.15'
 target_platform:
-- linux-64
+- linux-aarch64
 vtk:
 - 9.1.0
