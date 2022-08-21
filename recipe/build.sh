@@ -10,7 +10,7 @@ fi
 
 mkdir build && cd build
 
-cmake .. \
+cmake ${CMAKE_ARGS} \
   -DCMAKE_INSTALL_PREFIX=$PREFIX \
   -DCMAKE_BUILD_TYPE=Release \
   -DWITH_CUDA=OFF \
@@ -32,7 +32,7 @@ cmake .. \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF \
   -DBoost_NO_BOOST_CMAKE:BOOL=ON \
-  ${CMAKE_ARGS}
+  ..
 
 cmake --build . --config Release
 cmake --build . --config Release --target install
