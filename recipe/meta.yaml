@@ -30,10 +30,7 @@ requirements:
     - cmake
     - ninja                          # [win]
     - make                           # [unix]
-    - python                                 # [build_platform != target_platform]
-    - cross-python_{{ target_platform }}     # [build_platform != target_platform]
   host:
-    - python
     - xorg-libxfixes                 # [linux]
     - flann
     - eigen
@@ -44,7 +41,6 @@ requirements:
     - glew
     - qt-main  # [not ppc64le]
   run:
-    - python
     - flann
     - {{ pin_compatible('boost-cpp', max_pin='x.x.x') }}
     - qhull
