@@ -2,14 +2,15 @@
 
 set -ex
 
-if [[ "$target_platform" != "linux-ppc64le"
-        && "$target_platform" != "osx-arm64" ]]; then
+if [[ "$target_platform" != "linux-ppc64le" ]]; then
     QT_SUPPORT=ON
 else
     QT_SUPPORT=OFF
 fi
 
-cmake \
+mkdir build && cd build
+
+cmake ${CMAKE_ARGS} \
   -DCMAKE_INSTALL_PREFIX=$PREFIX \
   -DCMAKE_BUILD_TYPE=Release \
   -DWITH_CUDA=OFF \
@@ -31,7 +32,7 @@ cmake \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF \
   -DBoost_NO_BOOST_CMAKE:BOOL=ON \
-  ${CMAKE_ARGS}
+  ..
 
 cmake --build . --config Release
 cmake --build . --config Release --target install
