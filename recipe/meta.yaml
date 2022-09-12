@@ -16,7 +16,7 @@ source:
     - d253f645f0bfbcd2c818fa5d0a6970c61f39c6b5.patch
 
 build:
-  number: 2
+  number: 3
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
