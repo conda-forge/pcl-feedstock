@@ -1,6 +1,10 @@
 mkdir build
 cd build
 
+:: Make sure that PCL does not inject custom compilation options
+:: See https://github.com/conda-forge/pcl-feedstock/pull/54
+set "CXXFLAGS=/nologo %CXXFLAGS%"
+
 cmake -G "Ninja" ^
   -DCMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% ^
   -DCMAKE_BUILD_TYPE=Release ^
@@ -24,8 +28,6 @@ cmake -G "Ninja" ^
   -DBUILD_apps=OFF ^
   -DBoost_NO_BOOST_CMAKE:BOOL=ON ^
   -DPCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL=ON ^
-  -DPCL_ENABLE_SSE:BOOL=OFF ^
-  -DPCL_ENABLE_AVX:BOOL=OFF ^
   %SRC_DIR%
 if errorlevel 1 exit 1
 
