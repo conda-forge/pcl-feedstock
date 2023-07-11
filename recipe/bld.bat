@@ -1,6 +1,10 @@
 mkdir build
 cd build
 
+:: Make sure that PCL does not inject custom compilation options
+:: See https://github.com/conda-forge/pcl-feedstock/pull/54
+set "CXXFLAGS=/nologo %CXXFLAGS%"
+
 cmake -G "Ninja" ^
   -DCMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% ^
   -DCMAKE_BUILD_TYPE=Release ^
