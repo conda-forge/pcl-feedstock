@@ -1,11 +1,11 @@
-About pcl
-=========
+About pcl-feedstock
+===================
+
+Feedstock license: [BSD-3-Clause](https://github.com/conda-forge/pcl-feedstock/blob/main/LICENSE.txt)
 
 Home: http://www.pointclouds.org
 
 Package license: BSD-3-Clause
-
-Feedstock license: [BSD-3-Clause](https://github.com/conda-forge/pcl-feedstock/blob/main/LICENSE.txt)
 
 Summary: Point Cloud Library (PCL)
 
