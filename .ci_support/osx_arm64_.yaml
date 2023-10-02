@@ -1,7 +1,5 @@
 MACOSX_DEPLOYMENT_TARGET:
 - '11.0'
-boost_cpp:
-- 1.78.0
 channel_sources:
 - conda-forge
 channel_targets:
@@ -19,8 +17,6 @@ libpng:
 macos_machine:
 - arm64-apple-darwin20.0.0
 pin_run_as_build:
-  boost-cpp:
-    max_pin: x.x.x
   flann:
     max_pin: x.x.x
 qt_main:

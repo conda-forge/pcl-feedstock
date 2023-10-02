@@ -1,7 +1,5 @@
 BUILD:
 - aarch64-conda_cos7-linux-gnu
-boost_cpp:
-- 1.78.0
 cdt_arch:
 - aarch64
 cdt_name:
@@ -23,8 +21,6 @@ glew:
 libpng:
 - '1.6'
 pin_run_as_build:
-  boost-cpp:
-    max_pin: x.x.x
   flann:
     max_pin: x.x.x
 qt_main:

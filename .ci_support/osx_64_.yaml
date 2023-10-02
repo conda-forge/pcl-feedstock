@@ -2,8 +2,6 @@ MACOSX_DEPLOYMENT_TARGET:
 - '10.12'
 MACOSX_SDK_VERSION:
 - '10.12'
-boost_cpp:
-- 1.78.0
 channel_sources:
 - conda-forge
 channel_targets:
@@ -21,8 +19,6 @@ libpng:
 macos_machine:
 - x86_64-apple-darwin13.4.0
 pin_run_as_build:
-  boost-cpp:
-    max_pin: x.x.x
   flann:
     max_pin: x.x.x
 qt_main:
