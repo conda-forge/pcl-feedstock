@@ -32,4 +32,4 @@ qt_main:
 target_platform:
 - linux-aarch64
 vtk:
-- 9.2.5
+- 9.2.6
