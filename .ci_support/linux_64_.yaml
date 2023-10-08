@@ -28,4 +28,4 @@ qt_main:
 target_platform:
 - linux-64
 vtk:
-- 9.2.5
+- 9.2.6
