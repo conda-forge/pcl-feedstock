@@ -31,6 +31,3 @@ target_platform:
 - osx-arm64
 vtk:
 - 9.2.6
-zip_keys:
-- - c_stdlib_version
-  - MACOSX_DEPLOYMENT_TARGET

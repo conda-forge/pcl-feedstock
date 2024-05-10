@@ -1,8 +1,8 @@
 {% set name = "pcl" %}
-{% set version = "1.14.0" %}
+{% set version = "1.14.1" %}
 {% set major_version = version.split(".")[0] %}
 {% set minor_version = version.split(".")[1] %}
-{% set sha256 = "de297b929eafcb93747f12f98a196efddf3d55e4edf1b6729018b436d5be594d" %}
+{% set sha256 = "5dc5e09509644f703de9a3fb76d99ab2cc67ef53eaf5637db2c6c8b933b28af6" %}
 
 package:
   name: {{ name|lower }}
@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 1
+  number: 0
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
