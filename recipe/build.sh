@@ -3,9 +3,13 @@
 set -ex
 
 if [[ "$target_platform" != "linux-ppc64le" ]]; then
-    QT_SUPPORT=QT5
+    QT_SUPPORT=QT6
 else
     QT_SUPPORT=OFF
+fi
+
+if [[ "$build_platform" != "$target_platform" ]]; then
+    export QT_HOST_PATH="$BUILD_PREFIX"
 fi
 
 mkdir build && cd build

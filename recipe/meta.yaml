@@ -32,6 +32,7 @@ requirements:
     - ninja                          # [win]
     - make                           # [unix]
     - pkgconfig
+    - qt6-main                       # [build_platform != target_platform and not ppc64le]
   host:
     - xorg-libxfixes                 # [linux]
     - flann
@@ -41,7 +42,7 @@ requirements:
     - vtk
     - libpng
     - glew
-    - qt-main  # [not ppc64le]
+    - qt6-main  # [not ppc64le]
   run:
     - flann
     - qhull
