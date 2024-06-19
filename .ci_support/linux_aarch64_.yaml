@@ -34,7 +34,7 @@ qt_main:
 target_platform:
 - linux-aarch64
 vtk:
-- 9.2.6
+- 9.3.0
 zip_keys:
 - - c_stdlib_version
   - cdt_name
