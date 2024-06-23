@@ -3,9 +3,18 @@
 set -ex
 
 if [[ "$target_platform" != "linux-ppc64le" ]]; then
-    QT_SUPPORT=ON
+    QT_SUPPORT=QT6
 else
     QT_SUPPORT=OFF
+fi
+
+if [[ "$build_platform" != "$target_platform" ]]; then
+    export QT_HOST_PATH="$BUILD_PREFIX"
+fi
+
+if [[ "${target_platform}" == "osx-64" ]]; then
+    # https://conda-forge.org/docs/maintainer/knowledge_base.html#newer-c-features-with-old-sdk
+    export CXXFLAGS="${CXXFLAGS} -D_LIBCPP_DISABLE_AVAILABILITY"
 fi
 
 mkdir build && cd build
