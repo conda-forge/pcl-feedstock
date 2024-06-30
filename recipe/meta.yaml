@@ -39,7 +39,7 @@ requirements:
     - eigen
     - libboost-devel
     - qhull
-    - vtk * qt*
+    - vtk
     - libpng
     - glew
     - qt6-main  # [not ppc64le]
