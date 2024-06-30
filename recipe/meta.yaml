@@ -39,9 +39,9 @@ requirements:
     - eigen
     - libboost-devel
     - qhull
-    # The constraint is on vtk-base instead of vtk otherwise conda-smithy does not pin vtk in .ci_support
-    # if it sees there is a different pin in the meta.yaml
-    - vtk-base * qt*
+    - vtk * qt*
+    # We have also a vanilla dependency of vtk without pins so that conda-smithy correctly sets the
+    # pin from conda-forge-pinnings
     - vtk
     - libpng
     - glew
