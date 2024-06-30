@@ -29,6 +29,8 @@ qhull:
 - '2020.2'
 target_platform:
 - linux-ppc64le
+vtk:
+- 9.3.0
 zip_keys:
 - - c_stdlib_version
   - cdt_name
