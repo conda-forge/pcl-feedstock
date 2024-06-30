@@ -39,14 +39,14 @@ requirements:
     - eigen
     - libboost-devel
     - qhull
-    - vtk
+    - vtk * qt*
     - libpng
     - glew
     - qt6-main  # [not ppc64le]
   run:
     - flann
     - qhull
-    - vtk
+    - vtk * qt*
     - glew
 
 test:
