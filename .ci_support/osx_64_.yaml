@@ -33,5 +33,3 @@ qt6_main:
 - '6.7'
 target_platform:
 - osx-64
-vtk:
-- 9.3.0
