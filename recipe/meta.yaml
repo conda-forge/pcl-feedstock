@@ -12,9 +12,12 @@ source:
   fn: {{ name }}-{{ version }}.tar.gz
   url: https://github.com/pointcloudlibrary/{{ name }}/archive/{{ name }}-{{ version }}.tar.gz
   sha256: {{ sha256 }}
+  patches:
+    - 6053.patch
+    - 6105.patch
 
 build:
-  number: 3
+  number: 4
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
@@ -72,3 +75,4 @@ extra:
     - chambbj
     - hobu
     - Tobias-Fischer
+    - traversaro
