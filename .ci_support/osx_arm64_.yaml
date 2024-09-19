@@ -31,4 +31,4 @@ qt6_main:
 target_platform:
 - osx-arm64
 vtk:
-- 9.3.0
+- 9.3.1
