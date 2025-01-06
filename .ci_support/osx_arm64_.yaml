@@ -13,7 +13,7 @@ channel_targets:
 cxx_compiler:
 - clangxx
 cxx_compiler_version:
-- '17'
+- '18'
 flann:
 - 1.9.2
 glew:
@@ -24,6 +24,8 @@ libpng:
 - '1.6'
 macos_machine:
 - arm64-apple-darwin20.0.0
+pcl:
+- 1.14.1
 qhull:
 - '2020.2'
 qt6_main:
