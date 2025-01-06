@@ -17,7 +17,7 @@ source:
     - 6105.patch
 
 build:
-  number: 6
+  number: 7
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
