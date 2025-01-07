@@ -36,6 +36,7 @@ requirements:
     - flann
     - eigen
     - libboost-devel
+    - tbb-devel                      # [win]
     - qhull
     - vtk * qt*
     # We have also a vanilla dependency of vtk without pins so that conda-smithy correctly sets the
