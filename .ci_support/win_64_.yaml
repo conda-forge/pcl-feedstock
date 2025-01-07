@@ -14,11 +14,15 @@ libboost_devel:
 - '1.86'
 libpng:
 - '1.6'
+pcl:
+- 1.14.1
 qhull:
 - '2020.2'
 qt6_main:
-- '6.7'
+- '6.8'
 target_platform:
 - win-64
+tbb_devel:
+- '2021'
 vtk:
 - 9.3.1

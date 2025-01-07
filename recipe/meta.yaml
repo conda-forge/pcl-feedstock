@@ -17,7 +17,7 @@ source:
     - 6105.patch
 
 build:
-  number: 6
+  number: 7
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
@@ -25,12 +25,6 @@ requirements:
   build:
     - {{ compiler('cxx') }}
     - {{ stdlib("c") }}
-    - {{ cdt('mesa-libgl-devel') }}  # [linux]
-    - {{ cdt('mesa-dri-drivers') }}  # [linux]
-    - {{ cdt('libselinux') }}        # [linux]
-    - {{ cdt('libxdamage') }}        # [linux]
-    - {{ cdt('libxxf86vm') }}        # [linux]
-    - {{ cdt('libxext') }}           # [linux]
     - cmake
     - ninja                          # [win]
     - make                           # [unix]
@@ -38,9 +32,11 @@ requirements:
     - qt6-main                       # [build_platform != target_platform and not ppc64le]
   host:
     - xorg-libxfixes                 # [linux]
+    - libgl-devel                    # [linux]
     - flann
     - eigen
     - libboost-devel
+    - tbb-devel                      # [win]
     - qhull
     - vtk * qt*
     # We have also a vanilla dependency of vtk without pins so that conda-smithy correctly sets the
