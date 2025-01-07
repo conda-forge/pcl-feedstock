@@ -22,5 +22,7 @@ qt6_main:
 - '6.8'
 target_platform:
 - win-64
+tbb_devel:
+- '2021'
 vtk:
 - 9.3.1
