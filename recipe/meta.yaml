@@ -1,8 +1,8 @@
 {% set name = "pcl" %}
-{% set version = "1.14.1" %}
+{% set version = "1.15.0" %}
 {% set major_version = version.split(".")[0] %}
 {% set minor_version = version.split(".")[1] %}
-{% set sha256 = "5dc5e09509644f703de9a3fb76d99ab2cc67ef53eaf5637db2c6c8b933b28af6" %}
+{% set sha256 = "e90c981c21e89c45201c5083db8308e099f34c1782f92fd65a0a4eb0b72c6fbf" %}
 
 package:
   name: {{ name|lower }}
@@ -12,12 +12,9 @@ source:
   fn: {{ name }}-{{ version }}.tar.gz
   url: https://github.com/pointcloudlibrary/{{ name }}/archive/{{ name }}-{{ version }}.tar.gz
   sha256: {{ sha256 }}
-  patches:
-    - 6053.patch
-    - 6105.patch
 
 build:
-  number: 7
+  number: 0
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
