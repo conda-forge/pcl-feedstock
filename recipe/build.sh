@@ -41,6 +41,7 @@ cmake ${CMAKE_ARGS} \
   -DBUILD_tools=ON \
   -DBUILD_apps=OFF \
   -DBoost_NO_BOOST_CMAKE:BOOL=ON \
+  -DBoost_USE_DEBUG_RUNTIME:BOOL=OFF \
   ..
 
 cmake --build . --config Release
