@@ -27,6 +27,7 @@ cmake -G "Ninja" ^
   -DBUILD_tools=ON ^
   -DBUILD_apps=OFF ^
   -DBoost_NO_BOOST_CMAKE:BOOL=ON ^
+  -DBoost_USE_DEBUG_RUNTIME:BOOL=OFF ^
   -DPCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL=ON ^
   %SRC_DIR%
 if errorlevel 1 exit 1
