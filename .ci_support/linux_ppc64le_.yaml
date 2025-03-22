@@ -23,7 +23,7 @@ libboost_devel:
 libpng:
 - '1.6'
 pcl:
-- 1.14.1
+- 1.15.0
 qhull:
 - '2020.2'
 target_platform:
