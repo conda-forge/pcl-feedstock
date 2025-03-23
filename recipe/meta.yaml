@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 0
+  number: 1
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
 
@@ -35,9 +35,6 @@ requirements:
     - libboost-devel
     - tbb-devel                      # [win]
     - qhull
-    - vtk * qt*
-    # We have also a vanilla dependency of vtk without pins so that conda-smithy correctly sets the
-    # pin from conda-forge-pinnings
     - vtk
     - libpng
     - glew
@@ -45,7 +42,6 @@ requirements:
   run:
     - flann
     - qhull
-    - vtk * qt*
     - glew
 
 test:
