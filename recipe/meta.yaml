@@ -33,7 +33,7 @@ requirements:
     - flann
     - eigen
     - libboost-devel
-    - tbb-devel                      # [win]
+    - tbb-devel
     - qhull
     - vtk
     - libpng
@@ -43,6 +43,10 @@ requirements:
     - flann
     - qhull
     - glew
+    # This dependencies are required for find_package(PCL) to be successful
+    - libboost-devel
+    - tbb-devel
+    - libgl-devel                    # [linux]
 
 test:
   commands:
