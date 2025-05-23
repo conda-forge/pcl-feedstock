@@ -48,6 +48,7 @@ requirements:
     - qhull
     - glew
     - eigen
+    - libboost-devel
 
 test:
   commands:
