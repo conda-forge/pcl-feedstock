@@ -43,9 +43,11 @@ requirements:
     - glew
     - qt6-main  # [not ppc64le]
   run:
+    # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
     - flann
     - qhull
     - glew
+    - eigen
 
 test:
   commands:
