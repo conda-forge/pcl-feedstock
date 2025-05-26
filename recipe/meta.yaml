@@ -49,6 +49,7 @@ requirements:
     - glew
     - eigen
     - libboost-devel
+    - vtk
 
 test:
   commands:
