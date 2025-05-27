@@ -14,9 +14,12 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 1
+  number: 2
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
+  # vtk is not available on ppc64le, see https://github.com/conda-forge/vtk-feedstock/pull/335#issuecomment-2887407611
+  # and https://github.com/conda-forge/conda-forge.github.io/issues/2510 for general discussion on ppc64le support
+  skip: true  # [ppc64le]
 
 requirements:
   build:
@@ -40,14 +43,23 @@ requirements:
     - glew
     - qt6-main  # [not ppc64le]
   run:
+    # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
     - flann
     - qhull
     - glew
+    - eigen
+    - libboost-devel
+    - vtk
 
 test:
   commands:
     - test -d $PREFIX/include/{{ name }}-{{ major_version }}.{{ minor_version }}/{{ name }}              # [not win] 
     - if not exist %LIBRARY_INC%\\{{ name }}-{{ major_version }}.{{ minor_version }}\\{{ name }} exit 1  # [win] 
+    - cmake-package-check PCL
+  requires:
+    - cmake-package-check
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
 
 about:
   home: http://www.pointclouds.org

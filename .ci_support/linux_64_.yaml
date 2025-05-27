@@ -1,3 +1,7 @@
+c_compiler:
+- gcc
+c_compiler_version:
+- '13'
 c_stdlib:
 - sysroot
 c_stdlib_version:
@@ -27,8 +31,11 @@ pcl:
 qhull:
 - '2020.2'
 qt6_main:
-- '6.8'
+- '6.9'
 target_platform:
 - linux-64
 vtk:
-- 9.3.1
+- 9.4.2
+zip_keys:
+- - c_compiler_version
+  - cxx_compiler_version
