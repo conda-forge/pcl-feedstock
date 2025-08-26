@@ -34,6 +34,7 @@ requirements:
     - xorg-libxfixes                 # [linux]
     - libgl-devel                    # [linux]
     - flann
+    - nanoflann
     - eigen
     - libboost-devel
     - tbb-devel                      # [win]
