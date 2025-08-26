@@ -46,6 +46,7 @@ requirements:
   run:
     # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
     - flann
+    - nanoflann
     - qhull
     - glew
     - eigen
