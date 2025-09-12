@@ -37,7 +37,7 @@ qt6_main:
 target_platform:
 - osx-64
 vtk:
-- 9.4.2
+- 9.5.1
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
