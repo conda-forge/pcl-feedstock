@@ -29,7 +29,7 @@ libpng:
 macos_machine:
 - x86_64-apple-darwin13.4.0
 pcl:
-- 1.15.0
+- 1.15.1
 qhull:
 - '2020.2'
 qt6_main:
