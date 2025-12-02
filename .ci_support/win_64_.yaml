@@ -17,7 +17,7 @@ libboost_devel:
 libpng:
 - '1.6'
 pcl:
-- 1.15.0
+- 1.15.1
 qhull:
 - '2020.2'
 qt6_main:
@@ -27,4 +27,4 @@ target_platform:
 tbb_devel:
 - '2021'
 vtk:
-- 9.5.1
+- 9.5.2
