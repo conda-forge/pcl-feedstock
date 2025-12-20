@@ -33,7 +33,7 @@ pcl:
 qhull:
 - '2020.2'
 qt6_main:
-- '6.9'
+- '6.10'
 target_platform:
 - osx-arm64
 vtk:
