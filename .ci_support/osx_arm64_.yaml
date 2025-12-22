@@ -21,7 +21,7 @@ cxx_compiler_version:
 flann:
 - 1.9.2
 glew:
-- '2.2'
+- '2.3'
 libboost_devel:
 - '1.88'
 libpng:
