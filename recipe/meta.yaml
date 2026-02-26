@@ -14,7 +14,7 @@ source:
   sha256: {{ sha256 }}
 
 build:
-  number: 6
+  number: 7
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
   # vtk is not available on ppc64le, see https://github.com/conda-forge/vtk-feedstock/pull/335#issuecomment-2887407611
@@ -36,6 +36,7 @@ requirements:
     - flann
     - nanoflann
     - eigen
+    - eigen-abi-devel
     - libboost-devel
     - tbb-devel                      # [win]
     - qhull
