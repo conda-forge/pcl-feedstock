@@ -1,0 +1,12 @@
+diff --git a/outofcore/include/pcl/outofcore/visualization/geometry.h b/outofcore/include/pcl/outofcore/visualization/geometry.h
+index 66e67e353c7..3e4bf506b2c 100644
+--- a/outofcore/include/pcl/outofcore/visualization/geometry.h
++++ b/outofcore/include/pcl/outofcore/visualization/geometry.h
+@@ -2,6 +2,7 @@
+ 
+ // C++
+ #include <string>
++#include <iostream>
+ 
+ // PCL
+ #include "object.h"
