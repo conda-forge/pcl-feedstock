@@ -13,10 +13,11 @@ source:
   url: https://github.com/pointcloudlibrary/{{ name }}/archive/{{ name }}-{{ version }}.tar.gz
   sha256: {{ sha256 }}
   patches:
+    - 6354.patch
     - 6412.patch
 
 build:
-  number: 8
+  number: 9
   run_exports:
     - {{ pin_subpackage('pcl', max_pin='x.x.x') }}
   # vtk is not available on ppc64le, see https://github.com/conda-forge/vtk-feedstock/pull/335#issuecomment-2887407611
