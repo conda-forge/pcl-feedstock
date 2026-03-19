@@ -1,28 +1,26 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 168c3aba1ca..227961acb04 100644
+index 4571a0e43..5d316f5e8 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -345,9 +345,6 @@ find_package(Threads REQUIRED)
+@@ -346,7 +346,7 @@ endif()
+ find_package(Threads REQUIRED)
  
  # Eigen3 (required)
- find_package(Eigen3 REQUIRED NO_MODULE)
--if (Eigen3_VERSION VERSION_LESS 3.3)
--  message(FATAL_ERROR "Eigen version>=3.3 is required, but found ${Eigen3_VERSION}")
--endif()
+-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
++find_package(Eigen3 REQUIRED NO_MODULE)
  if(NOT EIGEN3_FOUND AND Eigen3_FOUND)
      set(EIGEN3_FOUND ${Eigen3_FOUND})
  endif()
 diff --git a/PCLConfig.cmake.in b/PCLConfig.cmake.in
-index 54ba7f16cc9..80a984f5e97 100644
+index d90f4a225..80a984f5e 100644
 --- a/PCLConfig.cmake.in
 +++ b/PCLConfig.cmake.in
-@@ -119,9 +119,6 @@ macro(find_eigen3)
+@@ -118,7 +118,7 @@ macro(find_eigen3)
+   if(PCL_ALL_IN_ONE_INSTALLER)
      set(Eigen3_DIR "${PCL_ROOT}/3rdParty/Eigen3/share/eigen3/cmake/")
    endif()
-   find_package(Eigen3 REQUIRED NO_MODULE)
--  if (Eigen3_VERSION VERSION_LESS 3.3)
--    message(FATAL_ERROR "Eigen version>=3.3 is required, but found ${Eigen3_VERSION}")
--  endif()
+-  find_package(Eigen3 3.3 REQUIRED NO_MODULE)
++  find_package(Eigen3 REQUIRED NO_MODULE)
    if(NOT EIGEN3_FOUND AND Eigen3_FOUND)
      set(EIGEN3_FOUND ${Eigen3_FOUND})
    endif()
