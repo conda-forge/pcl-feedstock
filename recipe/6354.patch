@@ -1,0 +1,41 @@
+From 4d88cca9821dc011037d8f4ae1bbe4cf50ddaa2c Mon Sep 17 00:00:00 2001
+From: Markus Vieth <39675748+mvieth@users.noreply.github.com>
+Date: Thu, 25 Sep 2025 20:22:00 +0200
+Subject: [PATCH 1/5] Enable compilation with Eigen 5.0.0
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0357d204397..b21d3005f0b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -346,7 +346,10 @@ endif()
+ find_package(Threads REQUIRED)
+ 
+ # Eigen3 (required)
+-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
++find_package(Eigen3 REQUIRED NO_MODULE)
++if (Eigen3_VERSION VERSION_LESS 3.3)
++  message(FATAL_ERROR "Eigen version>=3.3 is required, but found ${Eigen3_VERSION}")
++endif()
+ if(NOT EIGEN3_FOUND AND Eigen3_FOUND)
+     set(EIGEN3_FOUND ${Eigen3_FOUND})
+ endif()
+diff --git a/PCLConfig.cmake.in b/PCLConfig.cmake.in
+index d90f4a225a6..54ba7f16cc9 100644
+--- a/PCLConfig.cmake.in
++++ b/PCLConfig.cmake.in
+@@ -118,7 +118,10 @@ macro(find_eigen3)
+   if(PCL_ALL_IN_ONE_INSTALLER)
+     set(Eigen3_DIR "${PCL_ROOT}/3rdParty/Eigen3/share/eigen3/cmake/")
+   endif()
+-  find_package(Eigen3 3.3 REQUIRED NO_MODULE)
++  find_package(Eigen3 REQUIRED NO_MODULE)
++  if (Eigen3_VERSION VERSION_LESS 3.3)
++    message(FATAL_ERROR "Eigen version>=3.3 is required, but found ${Eigen3_VERSION}")
++  endif()
+   if(NOT EIGEN3_FOUND AND Eigen3_FOUND)
+     set(EIGEN3_FOUND ${Eigen3_FOUND})
+   endif()
