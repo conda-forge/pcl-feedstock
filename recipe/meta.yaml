@@ -13,7 +13,7 @@ source:
   url: https://github.com/pointcloudlibrary/{{ name }}/archive/{{ name }}-{{ version }}.tar.gz
   sha256: {{ sha256 }}
   patches:
-    - remove-eigen-version-constraint.patch
+    - 6354.patch
     - 6412.patch
 
 build:
