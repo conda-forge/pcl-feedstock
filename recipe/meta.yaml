@@ -79,6 +79,7 @@ about:
 
 extra:
   recipe-maintainers:
+    - oursland
     - chambbj
     - hobu
     - Tobias-Fischer
