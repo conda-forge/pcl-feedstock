@@ -8,12 +8,20 @@ jobs:
     vmImage: $(VMIMAGE)
   strategy:
     matrix:
-      osx_64_:
-        CONFIG: osx_64_
+      osx_64_qt6_main6.10:
+        CONFIG: osx_64_qt6_main6.10
         UPLOAD_PACKAGES: 'True'
         VMIMAGE: macOS-15
-      osx_arm64_:
-        CONFIG: osx_arm64_
+      osx_64_qt6_main6.8:
+        CONFIG: osx_64_qt6_main6.8
+        UPLOAD_PACKAGES: 'True'
+        VMIMAGE: macOS-15
+      osx_arm64_qt6_main6.10:
+        CONFIG: osx_arm64_qt6_main6.10
+        UPLOAD_PACKAGES: 'True'
+        VMIMAGE: macOS-15
+      osx_arm64_qt6_main6.8:
+        CONFIG: osx_arm64_qt6_main6.8
         UPLOAD_PACKAGES: 'True'
         VMIMAGE: macOS-15
   timeoutInMinutes: 360
