@@ -26,8 +26,6 @@ libboost_devel:
 - '1.88'
 libpng:
 - '1.6'
-pcl:
-- 1.15.1
 qhull:
 - '2020.2'
 qt6_main:

@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/prefix-dev/recipe-format/main/schema.json
+
+schema_version: 1
+
+context:
+  name: pcl
+  version: "1.15.1"
+  major_version: ${{ (version | split('.'))[0] }}
+  minor_version: ${{ (version | split('.'))[1] }}
+  sha256: e1d862c7b6bd27a45884a825a2e509bfcbd4561307d5bfe17ce5c8a3d94a6c29
+
+package:
+  name: ${{ name|lower }}
+  version: ${{ version }}
+
+source:
+  url: https://github.com/pointcloudlibrary/${{ name }}/archive/${{ name }}-${{ version }}.tar.gz
+  sha256: ${{ sha256 }}
+  file_name: ${{ name }}-${{ version }}.tar.gz
+  patches:
+    - 6354.patch
+    - 6412.patch
+
+build:
+  # vtk is not available on ppc64le, see https://github.com/conda-forge/vtk-feedstock/pull/335#issuecomment-2887407611
+  # and https://github.com/conda-forge/conda-forge.github.io/issues/2510 for general discussion on ppc64le support
+  number: 9
+  skip: ppc64le
+  script:
+    - if: not win
+      then: ${RECIPE_DIR}/build.sh
+      else: "%RECIPE_DIR%\\build.bat"
+
+requirements:
+  build:
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib("c") }}
+    - cmake
+    - if: win
+      then: ninja
+    - if: unix
+      then: make
+    - pkgconfig
+    - if: build_platform != target_platform and not ppc64le
+      then: qt6-main
+  host:
+    - if: linux
+      then: xorg-libxfixes
+    - if: linux
+      then: libgl-devel
+    - flann
+    - nanoflann
+    - eigen
+    - eigen-abi-devel
+    - libboost-devel
+    - if: win
+      then: tbb-devel
+    - qhull
+    - vtk
+    - libpng
+    - glew
+    - if: not ppc64le
+      then: qt6-main
+  run:
+    # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
+    - flann
+    - nanoflann
+    - qhull
+    - glew
+    - eigen
+    - libboost-devel
+    - vtk
+  run_exports:
+    - ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
+
+tests:
+  - requirements:
+      run:
+        - cmake-package-check
+        - ${{ compiler('c') }}
+        - ${{ compiler('cxx') }}
+    script:
+      - if: not win
+        then: test -d $PREFIX/include/${{ name }}-${{ major_version }}.${{ minor_version }}/${{ name }}
+      - if: win
+        then: if not exist %LIBRARY_INC%\\${{ name }}-${{ major_version }}.${{ minor_version }}\\${{ name }} exit 1
+      - cmake-package-check PCL
+
+about:
+  license: BSD-3-Clause
+  license_file: LICENSE.txt
+  summary: Point Cloud Library (PCL)
+  description: |
+    The Point Cloud Library (PCL) is a standalone, large scale, open project for 2D/3D image and point cloud processing.
+  homepage: http://www.pointclouds.org
+  repository: https://github.com/pointcloudlibrary/pcl
+  documentation: http://www.pointclouds.org
+
+extra:
+  recipe-maintainers:
+    - oursland
+    - chambbj
+    - hobu
+    - Tobias-Fischer
+    - traversaro

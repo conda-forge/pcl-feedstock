@@ -3,7 +3,7 @@ About pcl-feedstock
 
 Feedstock license: [BSD-3-Clause](https://github.com/conda-forge/pcl-feedstock/blob/main/LICENSE.txt)
 
-Home: http://www.pointclouds.org
+Home: http://www.pointclouds.org/
 
 Package license: BSD-3-Clause
 
@@ -11,10 +11,9 @@ Summary: Point Cloud Library (PCL)
 
 Development: https://github.com/pointcloudlibrary/pcl
 
-Documentation: http://www.pointclouds.org
+Documentation: http://www.pointclouds.org/
 
 The Point Cloud Library (PCL) is a standalone, large scale, open project for 2D/3D image and point cloud processing.
-
 
 Current build status
 ====================
@@ -200,5 +199,6 @@ Feedstock Maintainers
 * [@Tobias-Fischer](https://github.com/Tobias-Fischer/)
 * [@chambbj](https://github.com/chambbj/)
 * [@hobu](https://github.com/hobu/)
+* [@oursland](https://github.com/oursland/)
 * [@traversaro](https://github.com/traversaro/)
 
