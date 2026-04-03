@@ -21,7 +21,7 @@ libpng:
 qhull:
 - '2020.2'
 qt6_main:
-- '6.10'
+- '6.11'
 target_platform:
 - win-64
 tbb_devel:
