@@ -200,5 +200,6 @@ Feedstock Maintainers
 * [@Tobias-Fischer](https://github.com/Tobias-Fischer/)
 * [@chambbj](https://github.com/chambbj/)
 * [@hobu](https://github.com/hobu/)
+* [@oursland](https://github.com/oursland/)
 * [@traversaro](https://github.com/traversaro/)
 
