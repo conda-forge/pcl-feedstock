@@ -35,7 +35,7 @@ qt6_main:
 target_platform:
 - linux-64
 vtk:
-- 9.6.0
+- 9.6.1
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
