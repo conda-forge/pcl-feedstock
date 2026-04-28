@@ -15,6 +15,7 @@ source:
   patches:
     - 6354.patch
     - 6412.patch
+    - boost-system-header-only.patch
 
 build:
   number: 12
