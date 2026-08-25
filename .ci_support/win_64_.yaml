@@ -23,10 +23,10 @@ pcl:
 qhull:
 - '2020.2'
 qt6_main:
-- '6.11'
+- '6'
 target_platform:
 - win-64
 tbb_devel:
 - '2023'
 vtk:
-- 9.6.2
+- 9.7.0
