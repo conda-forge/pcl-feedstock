@@ -225,10 +225,7 @@ index a7674cac148..394c31eed5c 100644
    return idx;
  }
  
-@@ -3178,9 +3179,8 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
-   // Update the cells
-   cells = vtkSmartPointer<vtkCellArray>::New ();
- 
+@@ -3179,6 +3179,5 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
 -  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
 +  details::fillCells(lookup, verts, cells, max_size_of_polygon);
  
