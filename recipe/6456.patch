@@ -1,0 +1,229 @@
+From 960890ebbadf407daf6a7f94ab3861e5eb6f92e9 Mon Sep 17 00:00:00 2001
+From: Markus Vieth <mvieth@techfak.uni-bielefeld.de>
+Date: Sun, 26 Jul 2026 15:51:31 +0200
+Subject: Replace deprecated/removed VTK functions
+
+---
+ test/visualization/test_visualization.cpp     | 12 ++++
+ .../pcl/visualization/impl/pcl_visualizer.hpp | 72 ++++++++++++++-----
+ visualization/src/pcl_visualizer.cpp          | 15 ++--
+ 3 files changed, 78 insertions(+), 21 deletions(-)
+
+diff --git a/test/visualization/test_visualization.cpp b/test/visualization/test_visualization.cpp
+index 6ecce0417d6..0afda310320 100644
+--- a/test/visualization/test_visualization.cpp
++++ b/test/visualization/test_visualization.cpp
+@@ -219,7 +219,7 @@ TEST(PCL, PCLVisualizer_updateColorHandlerIndex) {
+   viewer_ptr->addPointCloud(rgb_cloud2_ptr,
+                             color_handler_ptr,
+                             Eigen::Vector4f::Zero(),
+-                            Eigen::Quaternionf(),
++                            Eigen::Quaternionf::Identity(),
+                             cloud_name,
+                             0);
+   EXPECT_TRUE(viewer_ptr->updateColorHandlerIndex(cloud_name, 0));
+diff --git a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+index e79475c233e..69155924afd 100644
+--- a/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
++++ b/visualization/include/pcl/visualization/impl/pcl_visualizer.hpp
+@@ -45,6 +45,7 @@
+ #include <vtkVectorText.h>
+ #include <vtkAlgorithmOutput.h>
+ #include <vtkFollower.h>
++#include <vtkLine.h>
+ #include <vtkMath.h>
+ #include <vtkSphereSource.h>
+ #include <vtkProperty2D.h>
+@@ -65,6 +66,8 @@
+ #include <pcl/common/utils.h> // pcl::utils::ignore
+ #include <pcl/visualization/common/shapes.h>
+ 
++#include <cmath>
++
+ // Support for VTK 7.1 upwards
+ #ifdef vtkGenericDataArray_h
+ #define SetTupleValue SetTypedTuple
+@@ -1226,7 +1229,14 @@ pcl::visualization::PCLVisualizer::addCorrespondences (
+     overwrite = false; // Correspondences doesn't exist, add them instead of updating them
+   }
+ 
+-  int n_corr = static_cast<int>(correspondences.size () / nth);
++  Eigen::Affine3f source_transformation;
++  source_transformation.linear () = source_points->sensor_orientation_.matrix ();
++  source_transformation.translation () = source_points->sensor_origin_.template head<3> ();
++  Eigen::Affine3f target_transformation;
++  target_transformation.linear () = target_points->sensor_orientation_.matrix ();
++  target_transformation.translation () = target_points->sensor_origin_.template head<3> ();
++
++  const int n_corr = static_cast<int>(std::ceil(static_cast<float>(correspondences.size ()) / nth));
+   vtkSmartPointer<vtkPolyData> line_data = vtkSmartPointer<vtkPolyData>::New ();
+ 
+   // Prepare colors
+@@ -1237,13 +1247,52 @@ pcl::visualization::PCLVisualizer::addCorrespondences (
+ 
+   // Prepare coordinates
+   vtkSmartPointer<vtkPoints> line_points = vtkSmartPointer<vtkPoints>::New ();
+-  line_points->SetNumberOfPoints (2 * n_corr);
++  vtkSmartPointer<vtkCellArray> line_cells = vtkSmartPointer<vtkCellArray>::New ();
++
++#if VTK_MAJOR_VERSION > 9 || (VTK_MAJOR_VERSION == 9 && VTK_MINOR_VERSION >= 6)
++  int j = 0;
++  // Draw lines between the best corresponding points
++  for (std::size_t i = 0; i < correspondences.size (); i += nth)
++  {
++    if (correspondences[i].index_match == UNAVAILABLE)
++    {
++      PCL_WARN ("[addCorrespondences] No valid index_match for correspondence %d\n", i);
++      continue;
++    }
++
++    PointT p_src ((*source_points)[correspondences[i].index_query]);
++    PointT p_tgt ((*target_points)[correspondences[i].index_match]);
++
++    p_src.getVector3fMap () = source_transformation * p_src.getVector3fMap ();
++    p_tgt.getVector3fMap () = target_transformation * p_tgt.getVector3fMap ();
++
++    int id1 = j * 2, id2 = j * 2 + 1;
++    // Set the points
++    line_points->InsertNextPoint(p_src.x, p_src.y, p_src.z);
++    line_points->InsertNextPoint(p_tgt.x, p_tgt.y, p_tgt.z);
+ 
++    vtkNew<vtkLine> line;
++    line->GetPointIds()->SetId(0, id1);
++    line->GetPointIds()->SetId(1, id2);
++    line_cells->InsertNextCell(line);
++
++    float rgb[3];
++    rgb[0] = vtkMath::Random (32, 255); // min / max
++    rgb[1] = vtkMath::Random (32, 255);
++    rgb[2] = vtkMath::Random (32, 255);
++    line_colors->InsertTuple (j, rgb);
++    ++j;
++  }
++  line_colors->SetNumberOfTuples (j);
++  line_data->SetPoints (line_points);
++  line_data->SetLines (line_cells);
++  line_data->GetCellData ()->SetScalars (line_colors);
++#else
++  line_points->SetNumberOfPoints (2 * n_corr);
+   vtkSmartPointer<vtkIdTypeArray> line_cells_id = vtkSmartPointer<vtkIdTypeArray>::New ();
+   line_cells_id->SetNumberOfComponents (3);
+   line_cells_id->SetNumberOfTuples (n_corr);
+   vtkIdType *line_cell_id = line_cells_id->GetPointer (0);
+-  vtkSmartPointer<vtkCellArray> line_cells = vtkSmartPointer<vtkCellArray>::New ();
+ 
+   vtkSmartPointer<vtkFloatArray> line_tcoords = vtkSmartPointer<vtkFloatArray>::New ();
+   line_tcoords->SetNumberOfComponents (1);
+@@ -1252,16 +1301,9 @@ pcl::visualization::PCLVisualizer::addCorrespondences (
+ 
+   double tc[3] = {0.0, 0.0, 0.0};
+ 
+-  Eigen::Affine3f source_transformation;
+-  source_transformation.linear () = source_points->sensor_orientation_.matrix ();
+-  source_transformation.translation () = source_points->sensor_origin_.template head<3> ();
+-  Eigen::Affine3f target_transformation;
+-  target_transformation.linear () = target_points->sensor_orientation_.matrix ();
+-  target_transformation.translation () = target_points->sensor_origin_.template head<3> ();
+-
+   int j = 0;
+   // Draw lines between the best corresponding points
+-  for (std::size_t i = 0; i < correspondences.size (); i += nth, ++j)
++  for (std::size_t i = 0; i < correspondences.size (); i += nth)
+   {
+     if (correspondences[i].index_match == UNAVAILABLE)
+     {
+@@ -1291,11 +1333,12 @@ pcl::visualization::PCLVisualizer::addCorrespondences (
+     rgb[0] = vtkMath::Random (32, 255); // min / max
+     rgb[1] = vtkMath::Random (32, 255);
+     rgb[2] = vtkMath::Random (32, 255);
+-    line_colors->InsertTuple (i, rgb);
++    line_colors->InsertTuple (j, rgb);
++    ++j;
+   }
+   line_colors->SetNumberOfTuples (j);
+   line_cells_id->SetNumberOfTuples (j);
+-  line_cells->SetCells (n_corr, line_cells_id);
++  line_cells->SetCells (j, line_cells_id);
+   line_points->SetNumberOfPoints (j*2);
+   line_tcoords->SetNumberOfTuples (j*2);
+  
+@@ -1304,6 +1347,7 @@ pcl::visualization::PCLVisualizer::addCorrespondences (
+   line_data->SetLines (line_cells);
+   line_data->GetPointData ()->SetTCoords (line_tcoords);
+   line_data->GetCellData ()->SetScalars (line_colors);
++#endif
+ 
+   // Create an Actor
+   if (!overwrite)
+@@ -1719,11 +1763,10 @@ pcl::visualization::PCLVisualizer::addPolygonMesh (
+     // Create polys from polyMesh.polygons
+     vtkSmartPointer<vtkCellArray> cell_array = vtkSmartPointer<vtkCellArray>::New ();
+     
+-    const auto idx = details::fillCells(lookup,vertices,cell_array, max_size_of_polygon);
++    details::fillCells(lookup,vertices,cell_array, max_size_of_polygon);
+ 
+     vtkSmartPointer<vtkPolyData> polydata;
+     allocVtkPolyData (polydata);
+-    cell_array->GetData ()->SetNumberOfValues (idx);
+     cell_array->Squeeze ();
+     polydata->SetPolys (cell_array);
+     polydata->SetPoints (points);
+@@ -1873,9 +1916,8 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+   // Update the cells
+   cells = vtkSmartPointer<vtkCellArray>::New ();
+   
+-  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++  details::fillCells(lookup, verts, cells, max_size_of_polygon);
+ 
+-  cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+   polydata->SetPolys (cells);
+diff --git a/visualization/src/pcl_visualizer.cpp b/visualization/src/pcl_visualizer.cpp
+index a7674cac148..394c31eed5c 100644
+--- a/visualization/src/pcl_visualizer.cpp
++++ b/visualization/src/pcl_visualizer.cpp
+@@ -126,6 +126,9 @@
+ vtkIdType
+ pcl::visualization::details::fillCells(std::vector<int>& lookup, const std::vector<pcl::Vertices>& vertices, vtkSmartPointer<vtkCellArray> cell_array, int max_size_of_polygon)
+ {
++  const auto idx = vertices.size() + std::accumulate(vertices.begin(), vertices.end(), static_cast<vtkIdType>(0),
++    [](const auto& sum, const auto& vertex) { return sum + vertex.vertices.size(); });
++
+ #ifdef VTK_CELL_ARRAY_V2
+   pcl::utils::ignore(max_size_of_polygon);
+ 
+@@ -172,11 +175,9 @@ pcl::visualization::details::fillCells(std::vector<int>& lookup, const std::vect
+         *cell++ = vertj;
+     }
+   }
++  cell_array->GetData ()->SetNumberOfValues (idx);
+ #endif
+ 
+-  const auto idx = vertices.size() + std::accumulate(vertices.begin(), vertices.end(), static_cast<vtkIdType>(0),
+-    [](const auto& sum, const auto& vertex) { return sum + vertex.vertices.size(); });
+-
+   return idx;
+ }
+ 
+@@ -3179,6 +3179,5 @@ pcl::visualization::PCLVisualizer::updatePolygonMesh (
+-  const auto idx = details::fillCells(lookup, verts, cells, max_size_of_polygon);
++  details::fillCells(lookup, verts, cells, max_size_of_polygon);
+ 
+-  cells->GetData ()->SetNumberOfValues (idx);
+   cells->Squeeze ();
+   // Set the the vertices
+   polydata->SetStrips (cells);
+@@ -4075,7 +4075,12 @@ pcl::visualization::PCLVisualizer::fromHandlersToScreen (
+   // Save the pointer/ID pair to the global actor map
+   CloudActor& cloud_actor = (*cloud_actor_map_)[id];
+   cloud_actor.actor = actor;
++#if VTK_MAJOR_VERSION > 9 || (VTK_MAJOR_VERSION == 9 && VTK_MINOR_VERSION >= 6)
++  cloud_actor.cells = vtkSmartPointer<vtkIdTypeArray>::New ();
++  reinterpret_cast<vtkPolyDataMapper*>(actor->GetMapper ())->GetInput ()->GetVerts ()->ExportLegacyFormat (cloud_actor.cells);
++#else
+   cloud_actor.cells = reinterpret_cast<vtkPolyDataMapper*>(actor->GetMapper ())->GetInput ()->GetVerts ()->GetData ();
++#endif
+   cloud_actor.geometry_handlers.push_back (geometry_handler);
+   cloud_actor.color_handlers.push_back (color_handler);
+ 

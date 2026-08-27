@@ -3,7 +3,7 @@ About pcl-feedstock
 
 Feedstock license: [BSD-3-Clause](https://github.com/conda-forge/pcl-feedstock/blob/main/LICENSE.txt)
 
-Home: http://www.pointclouds.org
+Home: http://www.pointclouds.org/
 
 Package license: BSD-3-Clause
 
@@ -11,10 +11,9 @@ Summary: Point Cloud Library (PCL)
 
 Development: https://github.com/pointcloudlibrary/pcl
 
-Documentation: http://www.pointclouds.org
+Documentation: http://www.pointclouds.org/
 
 The Point Cloud Library (PCL) is a standalone, large scale, open project for 2D/3D image and point cloud processing.
-
 
 Current build status
 ====================
@@ -41,13 +40,6 @@ Current build status
         <table>
           <thead><tr><th>Variant</th><th>Status</th></tr></thead>
           <tbody><tr>
-              <td>linux_aarch64</td>
-              <td>
-                <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=5677&branchName=main">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/pcl-feedstock?branchName=main&jobName=linux&configuration=linux%20linux_aarch64_" alt="variant">
-                </a>
-              </td>
-            </tr><tr>
               <td>osx_64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=5677&branchName=main">
@@ -55,10 +47,10 @@ Current build status
                 </a>
               </td>
             </tr><tr>
-              <td>win_64</td>
+              <td>osx_arm64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=5677&branchName=main">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/pcl-feedstock?branchName=main&jobName=win&configuration=win%20win_64_" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/pcl-feedstock?branchName=main&jobName=osx&configuration=osx%20osx_arm64_" alt="variant">
                 </a>
               </td>
             </tr>
@@ -86,31 +78,73 @@ conda config --add channels conda-forge
 conda config --set channel_priority strict
 ```
 
-Once the `conda-forge` channel has been enabled, `pcl` can be installed with `conda`:
+How to use
+----------
+
+<details>
+<summary>With conda</summary>
 
 ```
 conda install pcl
 ```
 
-or with `mamba`:
+</details>
+
+<details>
+<summary>With mamba</summary>
 
 ```
 mamba install pcl
 ```
 
-It is possible to list all of the versions of `pcl` available on your platform with `conda`:
+</details>
+
+<details>
+<summary>With pixi</summary>
+
+```
+# for adding to your local project
+pixi add pcl
+# for installing globally
+pixi global install pcl
+```
+
+</details>
+
+Search package versions
+-----------------------
+
+It is possible to list all of the versions of `pcl` available on your platform:
+
+<details>
+<summary>With conda</summary>
 
 ```
 conda search pcl --channel conda-forge
 ```
 
-or with `mamba`:
+</details>
+
+<details>
+<summary>With mamba</summary>
 
 ```
 mamba search pcl --channel conda-forge
 ```
 
-Alternatively, `mamba repoquery` may provide more information:
+</details>
+
+<details>
+<summary>With pixi</summary>
+
+```
+pixi search pcl --channel conda-forge
+```
+
+</details>
+
+<details>
+<summary>With mamba repoquery, which may provide more information</summary>
 
 ```
 # Search all versions available on your platform:
@@ -122,6 +156,8 @@ mamba repoquery whoneeds pcl --channel conda-forge
 # List dependencies of `pcl`:
 mamba repoquery depends pcl --channel conda-forge
 ```
+
+</details>
 
 
 About conda-forge
