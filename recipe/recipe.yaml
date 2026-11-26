@@ -72,7 +72,10 @@ requirements:
         - glew
         - vtk
   run_exports:
-    - ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
+    # Packages built against the gui variant may link pcl_visualization, which headless lacks
+    - if: pcl_variant == "gui"
+      then: ${{ pin_subpackage('pcl', upper_bound='x.x.x', build='gui_*') }}
+      else: ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
 
 tests:
   - requirements:
