@@ -22,7 +22,11 @@ source:
     - boost-system-header-only.patch
 
 build:
-  number: 16
+  number: 17
+  string: ${{ pcl_variant }}_h${{ hash }}_${{ build_number }}
+  variant:
+    # Prefer the gui variant (the historical default) unless headless is requested explicitly
+    down_prioritize_variant: ${{ 1 if pcl_variant == "headless" else 0 }}
 
 requirements:
   build:
@@ -34,12 +38,12 @@ requirements:
     - if: unix
       then: make
     - pkgconfig
-    - if: build_platform != target_platform
+    - if: build_platform != target_platform and pcl_variant == "gui"
       then: qt6-main
   host:
-    - if: linux
+    - if: linux and pcl_variant == "gui"
       then: xorg-libxfixes
-    - if: linux
+    - if: linux and pcl_variant == "gui"
       then: libgl-devel
     - flann
     - nanoflann
@@ -49,20 +53,24 @@ requirements:
     - if: win
       then: tbb-devel
     - qhull
-    - vtk
     - libpng
-    - glew
-    - if: not ppc64le
+    - if: pcl_variant == "gui"
+      then:
+        - vtk
+        - glew
+    - if: pcl_variant == "gui" and not ppc64le
       then: qt6-main
   run:
     # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
     - flann
     - nanoflann
     - qhull
-    - glew
     - eigen
     - libboost-devel
-    - vtk
+    - if: pcl_variant == "gui"
+      then:
+        - glew
+        - vtk
   run_exports:
     - ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
 
@@ -78,6 +86,19 @@ tests:
       - if: win
         then: if not exist %LIBRARY_INC%\\${{ name }}-${{ major_version }}.${{ minor_version }}\\${{ name }} exit 1
       - cmake-package-check PCL
+      # The visualization module must only be part of the gui variant
+      - if: linux and pcl_variant == "gui"
+        then: test -f $PREFIX/lib/libpcl_visualization.so
+      - if: linux and pcl_variant == "headless"
+        then: test ! -f $PREFIX/lib/libpcl_visualization.so
+      - if: osx and pcl_variant == "gui"
+        then: test -f $PREFIX/lib/libpcl_visualization.dylib
+      - if: osx and pcl_variant == "headless"
+        then: test ! -f $PREFIX/lib/libpcl_visualization.dylib
+      - if: win and pcl_variant == "gui"
+        then: if not exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
+      - if: win and pcl_variant == "headless"
+        then: if exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
 
 about:
   license: BSD-3-Clause

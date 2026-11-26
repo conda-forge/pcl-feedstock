@@ -1,17 +1,21 @@
+MACOSX_SDK_VERSION:
+- '12.3'
 c_compiler:
-- vs
+- clang
 c_compiler_version:
-- '2022'
+- '22'
 c_stdlib:
-- vs
+- macosx_deployment_target
+c_stdlib_version:
+- '11.0'
 channel_sources:
 - conda-forge
 channel_targets:
 - conda-forge main
 cxx_compiler:
-- vs
+- clangxx
 cxx_compiler_version:
-- '2022'
+- '22'
 eigen_abi_devel:
 - 5.0.1
 flann:
@@ -22,15 +26,20 @@ libboost_devel:
 - '1.90'
 libpng:
 - '1.6'
+macos_machine:
+- arm64-apple-darwin20.0.0
 nanoflann:
 - 2.0.2
+pcl_variant:
+- gui
 qhull:
 - '2020.2'
 qt6_main:
 - '6.11'
 target_platform:
-- win-64
-tbb_devel:
-- '2023'
+- osx-arm64
 vtk:
 - 9.7.2
+zip_keys:
+- - c_compiler_version
+  - cxx_compiler_version
