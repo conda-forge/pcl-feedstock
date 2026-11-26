@@ -42,9 +42,9 @@ requirements:
       then: qt6-main
   host:
     - if: linux and pcl_variant == "gui"
-      then: xorg-libxfixes
-    - if: linux and pcl_variant == "gui"
-      then: libgl-devel
+      then:
+        - xorg-libxfixes
+        - libgl-devel
     - flann
     - nanoflann
     - eigen
@@ -84,24 +84,26 @@ tests:
         - ${{ compiler('c') }}
         - ${{ compiler('cxx') }}
     script:
-      - if: not win
-        then: test -d $PREFIX/include/${{ name }}-${{ major_version }}.${{ minor_version }}/${{ name }}
       - if: win
         then: if not exist %LIBRARY_INC%\\${{ name }}-${{ major_version }}.${{ minor_version }}\\${{ name }} exit 1
+        else: test -d $PREFIX/include/${{ name }}-${{ major_version }}.${{ minor_version }}/${{ name }}
       - cmake-package-check PCL
       # The visualization module must only be part of the gui variant
-      - if: linux and pcl_variant == "gui"
-        then: test -f $PREFIX/lib/libpcl_visualization.so
-      - if: linux and pcl_variant == "headless"
-        then: test ! -f $PREFIX/lib/libpcl_visualization.so
-      - if: osx and pcl_variant == "gui"
-        then: test -f $PREFIX/lib/libpcl_visualization.dylib
-      - if: osx and pcl_variant == "headless"
-        then: test ! -f $PREFIX/lib/libpcl_visualization.dylib
-      - if: win and pcl_variant == "gui"
-        then: if not exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
-      - if: win and pcl_variant == "headless"
-        then: if exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
+      - if: pcl_variant == "gui"
+        then:
+          - if: linux
+            then: test -f $PREFIX/lib/libpcl_visualization.so
+          - if: osx
+            then: test -f $PREFIX/lib/libpcl_visualization.dylib
+          - if: win
+            then: if not exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
+        else:
+          - if: linux
+            then: test ! -f $PREFIX/lib/libpcl_visualization.so
+          - if: osx
+            then: test ! -f $PREFIX/lib/libpcl_visualization.dylib
+          - if: win
+            then: if exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
 
 about:
   license: BSD-3-Clause
