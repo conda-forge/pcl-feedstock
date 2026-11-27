@@ -22,7 +22,11 @@ source:
     - boost-system-header-only.patch
 
 build:
-  number: 16
+  number: 17
+  string: ${{ pcl_variant }}_h${{ hash }}_${{ build_number }}
+  variant:
+    # Prefer the gui variant (the historical default) unless headless is requested explicitly
+    down_prioritize_variant: ${{ 1 if pcl_variant == "headless" else 0 }}
 
 requirements:
   build:
@@ -34,13 +38,13 @@ requirements:
     - if: unix
       then: make
     - pkgconfig
-    - if: build_platform != target_platform
+    - if: build_platform != target_platform and pcl_variant == "gui"
       then: qt6-main
   host:
-    - if: linux
-      then: xorg-libxfixes
-    - if: linux
-      then: libgl-devel
+    - if: linux and pcl_variant == "gui"
+      then:
+        - xorg-libxfixes
+        - libgl-devel
     - flann
     - nanoflann
     - eigen
@@ -49,22 +53,29 @@ requirements:
     - if: win
       then: tbb-devel
     - qhull
-    - vtk
     - libpng
-    - glew
-    - if: not ppc64le
+    - if: pcl_variant == "gui"
+      then:
+        - vtk
+        - glew
+    - if: pcl_variant == "gui" and not ppc64le
       then: qt6-main
   run:
     # These dependencies are required for find_package(PCL) to work, they can be moved to a pcl-devel package if that is created
     - flann
     - nanoflann
     - qhull
-    - glew
     - eigen
     - libboost-devel
-    - vtk
+    - if: pcl_variant == "gui"
+      then:
+        - glew
+        - vtk
   run_exports:
-    - ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
+    # Packages built against the gui variant may link pcl_visualization, which headless lacks
+    - if: pcl_variant == "gui"
+      then: ${{ pin_subpackage('pcl', upper_bound='x.x.x', build='gui_*') }}
+      else: ${{ pin_subpackage('pcl', upper_bound='x.x.x') }}
 
 tests:
   - requirements:
@@ -73,11 +84,20 @@ tests:
         - ${{ compiler('c') }}
         - ${{ compiler('cxx') }}
     script:
-      - if: not win
-        then: test -d $PREFIX/include/${{ name }}-${{ major_version }}.${{ minor_version }}/${{ name }}
       - if: win
         then: if not exist %LIBRARY_INC%\\${{ name }}-${{ major_version }}.${{ minor_version }}\\${{ name }} exit 1
+        else: test -d $PREFIX/include/${{ name }}-${{ major_version }}.${{ minor_version }}/${{ name }}
       - cmake-package-check PCL
+      # The visualization module must only be part of the gui variant
+      - if: pcl_variant == "gui"
+        then:
+          - if: unix
+            then: test -f $PREFIX/lib/libpcl_visualization${{ SHLIB_EXT }}
+            else: if not exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
+        else:
+          - if: unix
+            then: test ! -f $PREFIX/lib/libpcl_visualization${{ SHLIB_EXT }}
+            else: if exist %LIBRARY_LIB%\\pcl_visualization.lib exit 1
 
 about:
   license: BSD-3-Clause

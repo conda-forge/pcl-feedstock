@@ -8,8 +8,8 @@ jobs:
     vmImage: $(vm_image)
   strategy:
     matrix:
-      osx_64_:
-        CONFIG: osx_64_
+      osx_64_pcl_variantgui:
+        CONFIG: osx_64_pcl_variantgui
         UPLOAD_PACKAGES: 'True'
         build_workspace_dir: ~/miniforge3/conda-bld
         free_disk_space: skip
@@ -18,8 +18,28 @@ jobs:
         store_build_artifacts: false
         tools_install_dir: ~/miniforge3
         vm_image: macOS-15
-      osx_arm64_:
-        CONFIG: osx_arm64_
+      osx_64_pcl_variantheadless:
+        CONFIG: osx_64_pcl_variantheadless
+        UPLOAD_PACKAGES: 'True'
+        build_workspace_dir: ~/miniforge3/conda-bld
+        free_disk_space: skip
+        pagefile_size: 0
+        resize_partitions: false
+        store_build_artifacts: false
+        tools_install_dir: ~/miniforge3
+        vm_image: macOS-15
+      osx_arm64_pcl_variantgui:
+        CONFIG: osx_arm64_pcl_variantgui
+        UPLOAD_PACKAGES: 'True'
+        build_workspace_dir: ~/miniforge3/conda-bld
+        free_disk_space: skip
+        pagefile_size: 0
+        resize_partitions: false
+        store_build_artifacts: false
+        tools_install_dir: ~/miniforge3
+        vm_image: macOS-15-arm64
+      osx_arm64_pcl_variantheadless:
+        CONFIG: osx_arm64_pcl_variantheadless
         UPLOAD_PACKAGES: 'True'
         build_workspace_dir: ~/miniforge3/conda-bld
         free_disk_space: skip
